@@ -23,6 +23,7 @@ import LuxuryTooltip from "@/components/shared/LuxuryTooltip";
 import { CrashGame } from "@/components/games/crash";
 import { AnimalGame } from "@/components/games/bicho";
 import { SlotsGame } from "@/components/games/slots";
+import { BlackjackGame } from "@/components/games/blackjack";
 
 export default function BlackoutCasino() {
   const { lang, setLang, activeTab, setActiveTab, selectedGame, setSelectedGame, activeGame, setActiveGame, saldo, setSaldo, isOpen, setIsOpen } = useCasino();
@@ -450,7 +451,14 @@ export default function BlackoutCasino() {
                   onDeposit={() => setShowDeposit(true)}
                 />
               )}
-              {activeGame && activeGame !== "crash" && activeGame !== "anima-game" && activeGame !== "slots" && (
+              {activeGame === "blackjack" && (
+                <BlackjackGame
+                  key="blackjack"
+                  onBack={() => setActiveGame(null)}
+                  onDeposit={() => setShowDeposit(true)}
+                />
+              )}
+              {activeGame && activeGame !== "crash" && activeGame !== "anima-game" && activeGame !== "slots" && activeGame !== "blackjack" && (
                 <ComingSoon
                   key={activeGame}
                   onBack={() => setActiveGame(null)}
