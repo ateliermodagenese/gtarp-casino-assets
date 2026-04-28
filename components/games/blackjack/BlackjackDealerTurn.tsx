@@ -1,552 +1,624 @@
 "use client";
 
-// Blackjack Tela 5 — DEALER TURN (vez do dealer)
-// Dealer revela hole card (flip dramatico) e compra cartas ate 17+
-// Controles do jogador ficam DIMMED (opacity 0.3, pointerEvents none)
-// Badge total do dealer muda de cor conforme vai atingindo 17+/bust
-
-import { motion } from "framer-motion";
-import { ASSETS, COLORS, TEXTS, t, ACTION_BUTTONS } from "./BlackjackConstants";
-import type { Action, Hand, Lang } from "./BlackjackTypes";
-import { BlackjackCard, HandTotalBadge } from "./BlackjackCard";
-import BlackjackTable from "./BlackjackTable";
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 // ============================================================================
-// PROPS
+// TYPES
 // ============================================================================
+interface Card {
+  suit: "hearts" | "diamonds" | "clubs" | "spades";
+  rank: string;
+}
 
-export interface BlackjackDealerTurnProps {
-  lang: Lang;
-  /** Mao(s) do jogador, podem ser multiplas se houve split */
-  playerHands: Hand[];
-  /** Mao do dealer (todas face-up agora, hole card ja foi revelado) */
-  dealerHand: Hand;
-  /** Aposta total do jogador */
-  totalBet: number;
-  /** Se true, desenha a animacao de flip do hole card */
-  flipAnimation?: boolean;
+interface BlackjackDealerTurnProps {
+  onComplete?: (result: { dealerTotal: number; playerTotal: number; dealerBust: boolean }) => void;
+  lang?: "br" | "in";
 }
 
 // ============================================================================
-// COMPONENTE PRINCIPAL
+// LABELS
 // ============================================================================
+const LABELS = {
+  br: {
+    dealer: "DEALER",
+    player: "JOGADOR",
+    dealerPlaying: "DEALER JOGANDO...",
+    bust: "BUST",
+    hit: "HIT",
+    stand: "STAND",
+    double: "DOUBLE",
+    split: "SPLIT",
+    surrender: "SURRENDER",
+  },
+  in: {
+    dealer: "DEALER",
+    player: "PLAYER",
+    dealerPlaying: "DEALER PLAYING...",
+    bust: "BUST",
+    hit: "HIT",
+    stand: "STAND",
+    double: "DOUBLE",
+    split: "SPLIT",
+    surrender: "SURRENDER",
+  },
+};
 
-export default function BlackjackDealerTurn({
-  lang,
-  playerHands,
-  dealerHand,
-  totalBet,
-  flipAnimation = false,
-}: BlackjackDealerTurnProps) {
+// ============================================================================
+// MOCK DATA
+// ============================================================================
+const DEALER_CARDS: Card[] = [
+  { suit: "hearts", rank: "10" },
+  { suit: "spades", rank: "K" },
+  { suit: "diamonds", rank: "6" },
+];
+
+const PLAYER_CARDS: Card[] = [
+  { suit: "spades", rank: "A" },
+  { suit: "diamonds", rank: "10" },
+];
+
+// ============================================================================
+// HELPER: Get card PNG path
+// ============================================================================
+function getCardPath(card: Card): string {
+  return `/assets/games/blackjack/cards/card-${card.suit}-${card.rank}.png`;
+}
+
+// ============================================================================
+// HELPER: Get total badge color style
+// ============================================================================
+function getTotalStyle(total: number, isBust: boolean, isDealer: boolean): React.CSSProperties {
+  if (isBust) {
+    return { color: "#FF1744", textShadow: "0 0 8px rgba(255,23,68,0.5)" };
+  }
+  if (isDealer) {
+    return { color: "#A8A8A8" };
+  }
+  if (total === 21) {
+    return { color: "#FFD700", textShadow: "0 0 12px rgba(255,215,0,0.6)" };
+  }
+  if (total >= 17) {
+    return { color: "#00E676", textShadow: "0 0 8px rgba(0,230,118,0.4)" };
+  }
+  return { color: "#A8A8A8" };
+}
+
+// ============================================================================
+// COMPONENT: BlackjackCard (with flip animation)
+// ============================================================================
+function BlackjackCard({
+  card,
+  isFlipped,
+  showGlow,
+  delay = 0,
+  slideIn = false,
+}: {
+  card: Card;
+  isFlipped: boolean;
+  showGlow?: boolean;
+  delay?: number;
+  slideIn?: boolean;
+}) {
+  const cardWidth = "clamp(48px, 8vw, 72px)";
+  const cardHeight = "clamp(67px, 11.2vw, 101px)";
+
+  const cardFaceStyle: React.CSSProperties = {
+    position: "absolute",
+    inset: 0,
+    borderRadius: "clamp(4px, 0.6vw, 8px)",
+    backfaceVisibility: "hidden",
+    overflow: "hidden",
+  };
+
+  return (
+    <motion.div
+      initial={slideIn ? { x: 50, opacity: 0 } : { opacity: 1 }}
+      animate={{ x: 0, opacity: 1 }}
+      transition={slideIn ? { delay, duration: 0.4, ease: "easeOut" } : {}}
+      style={{
+        width: cardWidth,
+        height: cardHeight,
+        perspective: "1000px",
+        flexShrink: 0,
+      }}
+    >
+      <motion.div
+        initial={{ rotateY: isFlipped ? 0 : 180 }}
+        animate={{ rotateY: isFlipped ? 0 : 180 }}
+        transition={{
+          type: "spring",
+          stiffness: 300,
+          damping: 40,
+          delay,
+        }}
+        style={{
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          transformStyle: "preserve-3d",
+        }}
+      >
+        {/* Front face (card image) */}
+        <div
+          style={{
+            ...cardFaceStyle,
+            background: "#FFFFFF",
+            border: "1px solid rgba(0,0,0,0.15)",
+            boxShadow: showGlow
+              ? "0 0 20px rgba(212,168,67,0.4), 0 2px 8px rgba(0,0,0,0.3)"
+              : "0 2px 8px rgba(0,0,0,0.3)",
+            transition: "box-shadow 0.7s ease-out",
+          }}
+        >
+          <img
+            src={getCardPath(card)}
+            alt={`${card.rank} of ${card.suit}`}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              borderRadius: "clamp(4px, 0.6vw, 8px)",
+            }}
+            draggable={false}
+          />
+        </div>
+
+        {/* Back face (card back) */}
+        <div
+          style={{
+            ...cardFaceStyle,
+            transform: "rotateY(180deg)",
+            border: "1.5px solid rgba(212,168,67,0.3)",
+            boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+          }}
+        >
+          <img
+            src="/assets/games/blackjack/card-back.png"
+            alt="Card back"
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              borderRadius: "clamp(4px, 0.6vw, 8px)",
+            }}
+            draggable={false}
+          />
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ============================================================================
+// COMPONENT: TotalBadge
+// ============================================================================
+function TotalBadge({
+  total,
+  isBust,
+  isDealer,
+  bustLabel,
+}: {
+  total: number;
+  isBust: boolean;
+  isDealer: boolean;
+  bustLabel: string;
+}) {
+  const style = getTotalStyle(total, isBust, isDealer);
+
+  return (
+    <motion.div
+      key={`${total}-${isBust}`}
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 400, damping: 25 }}
+      style={{
+        background: "rgba(0,0,0,0.7)",
+        borderRadius: "12px",
+        padding: "2px 10px",
+        fontFamily: "'JetBrains Mono', monospace",
+        fontWeight: 700,
+        fontSize: "clamp(12px, 1.8vw, 16px)",
+        ...style,
+      }}
+    >
+      {isBust ? `${total} ${bustLabel}` : total}
+    </motion.div>
+  );
+}
+
+// ============================================================================
+// COMPONENT: ActionButton (disabled state)
+// ============================================================================
+function ActionButton({ label }: { label: string }) {
   return (
     <div
       style={{
-        position: "absolute",
-        inset: 0,
         display: "flex",
-        flexDirection: "row",
-        overflow: "hidden",
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: "44px",
+        minWidth: "clamp(60px, 10vw, 80px)",
+        padding: "0 clamp(8px, 1.2vw, 14px)",
+        background: "#1A1A1A",
+        border: "1.5px solid rgba(255,255,255,0.05)",
+        borderRadius: "8px",
+        fontFamily: "'Cinzel', serif",
+        fontWeight: 700,
+        fontSize: "clamp(9px, 1.2vw, 14px)",
+        textTransform: "uppercase",
+        letterSpacing: "1.5px",
+        color: "#FFFFFF",
+        opacity: 0.2,
+        pointerEvents: "none",
+        filter: "grayscale(1)",
       }}
     >
-      {/* AREA CENTRAL - MESA */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "clamp(20px, 3vw, 48px)",
-        }}
-      >
-        <Mesa
-          playerHands={playerHands}
-          dealerHand={dealerHand}
-          lang={lang}
-          flipAnimation={flipAnimation}
-        />
-      </div>
-
-      {/* PAINEL LATERAL - botoes TODOS dimmed */}
-      <PainelAcoesDimmed lang={lang} totalBet={totalBet} />
+      {label}
     </div>
   );
 }
 
 // ============================================================================
-// SUBCOMPONENTE: MESA (dealer com todas as cartas face-up)
+// MAIN COMPONENT
 // ============================================================================
+export default function BlackjackDealerTurn({
+  onComplete,
+  lang = "br",
+}: BlackjackDealerTurnProps) {
+  const t = LABELS[lang];
 
-interface MesaProps {
-  playerHands: Hand[];
-  dealerHand: Hand;
-  lang: Lang;
-  flipAnimation: boolean;
-}
+  // Animation sequence states
+  const [holeCardFlipped, setHoleCardFlipped] = useState(false);
+  const [showHoleCardGlow, setShowHoleCardGlow] = useState(false);
+  const [dealerTotal, setDealerTotal] = useState(10);
+  const [showThirdCard, setShowThirdCard] = useState(false);
+  const [dealerBust, setDealerBust] = useState(false);
 
-function Mesa({ playerHands, dealerHand, lang, flipAnimation }: MesaProps) {
-  const isMultiHand = playerHands.length > 1;
+  // Animation sequence
+  useEffect(() => {
+    // T=0ms: Flip hole card
+    const flipTimer = setTimeout(() => {
+      setHoleCardFlipped(true);
+      setShowHoleCardGlow(true);
+    }, 100);
 
-  return (
-    <BlackjackTable>
+    // T=700ms: Remove glow
+    const glowTimer = setTimeout(() => {
+      setShowHoleCardGlow(false);
+    }, 700);
 
-      {/* DEALER AREA com glow dourado transitorio durante o flip */}
-      <motion.div
-        animate={
-          flipAnimation
-            ? {
-                boxShadow: [
-                  "0 0 0 rgba(212,168,67,0)",
-                  "0 0 40px rgba(212,168,67,0.5)",
-                  "0 0 0 rgba(212,168,67,0)",
-                ],
-              }
-            : {}
-        }
-        transition={{ duration: 0.7, times: [0, 0.5, 1] }}
-        style={{
-          position: "relative",
-          zIndex: 1,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: "clamp(6px, 1vw, 12px)",
-          padding: "clamp(8px, 1vw, 14px)",
-          borderRadius: 12,
-        }}
-      >
-        <Label text={t(TEXTS.dealer, lang)} />
-        <div
-          style={{
-            display: "flex",
-            gap: "clamp(-8px, -1vw, -12px)",
-          }}
-        >
-          {dealerHand.cards.map((card, i) => (
-            <BlackjackCard
-              key={`dealer-${i}`}
-              rank={card.rank}
-              suit={card.suit}
-              faceUp={true}
-              index={i}
-              animate={i >= 2}
-            />
-          ))}
-        </div>
-        <HandTotalBadge
-          total={dealerHand.total}
-          isSoft={dealerHand.isSoft}
-          isBust={dealerHand.isBust}
-          softAlt={dealerHand.isSoft ? dealerHand.total - 10 : undefined}
-        />
-      </motion.div>
+    // T=800ms: Update dealer total to 20
+    const updateTotal1 = setTimeout(() => {
+      setDealerTotal(20);
+    }, 800);
 
-      {/* Divider */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          width: "60%",
-          height: 1,
-          background:
-            "linear-gradient(90deg, transparent, rgba(212,168,67,0.15), transparent)",
-        }}
-      />
+    // T=1500ms: Show third card
+    const showCard3 = setTimeout(() => {
+      setShowThirdCard(true);
+    }, 1500);
 
-      {/* AREA DO JOGADOR (1 ou varias maos) */}
-      {isMultiHand ? (
-        <div
-          style={{
-            position: "relative",
-            zIndex: 1,
-            display: "flex",
-            flexDirection: "row",
-            justifyContent: "center",
-            gap: "clamp(12px, 2vw, 28px)",
-            width: "100%",
-          }}
-        >
-          {playerHands.map((hand, i) => (
-            <PlayerHandView key={`ph-${i}`} hand={hand} index={i} lang={lang} />
-          ))}
-        </div>
-      ) : (
-        <div
-          style={{
-            position: "relative",
-            zIndex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: "clamp(6px, 1vw, 12px)",
-          }}
-        >
-          <div style={{ display: "flex", gap: "clamp(-8px, -1vw, -12px)" }}>
-            {playerHands[0]?.cards.map((card, i) => (
-              <BlackjackCard
-                key={`player-${i}`}
-                rank={card.rank}
-                suit={card.suit}
-                faceUp={card.faceUp}
-                index={i}
-                animate={false}
-              />
-            ))}
-          </div>
-          {playerHands[0] && (
-            <HandTotalBadge
-              total={playerHands[0].total}
-              isSoft={playerHands[0].isSoft}
-              isBust={playerHands[0].isBust}
-              softAlt={
-                playerHands[0].isSoft
-                  ? playerHands[0].total - 10
-                  : undefined
-              }
-            />
-          )}
-        </div>
-      )}
+    // T=2000ms: Update dealer total to 26
+    const updateTotal2 = setTimeout(() => {
+      setDealerTotal(26);
+    }, 2000);
 
-      <Label text={t(TEXTS.player, lang)} />
-    </BlackjackTable>
-  );
-}
+    // T=2200ms: Set bust state
+    const setBust = setTimeout(() => {
+      setDealerBust(true);
+      onComplete?.({ dealerTotal: 26, playerTotal: 21, dealerBust: true });
+    }, 2200);
 
-// ============================================================================
-// SUBCOMPONENTE: LABEL
-// ============================================================================
+    return () => {
+      clearTimeout(flipTimer);
+      clearTimeout(glowTimer);
+      clearTimeout(updateTotal1);
+      clearTimeout(showCard3);
+      clearTimeout(updateTotal2);
+      clearTimeout(setBust);
+    };
+  }, [onComplete]);
 
-function Label({ text }: { text: string }) {
-  return (
-    <span
-      style={{
-        fontFamily: "'Cinzel', serif",
-        fontWeight: 700,
-        fontSize: "clamp(10px, 1.3vw, 14px)",
-        color: "rgba(255,255,255,0.12)",
-        textTransform: "uppercase",
-        letterSpacing: "3px",
-        pointerEvents: "none",
-      }}
-    >
-      {text}
-    </span>
-  );
-}
-
-// ============================================================================
-// SUBCOMPONENTE: VIEW DE MAO DO JOGADOR (para split)
-// ============================================================================
-
-interface PlayerHandViewProps {
-  hand: Hand;
-  index: number;
-  lang: Lang;
-}
-
-function PlayerHandView({ hand, index, lang }: PlayerHandViewProps) {
   return (
     <div
       style={{
-        position: "relative",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "clamp(6px, 1vw, 10px)",
-        padding: "clamp(12px, 1.5vw, 18px) clamp(8px, 1vw, 14px)",
-        border: "1.5px solid rgba(212,168,67,0.2)",
-        borderRadius: 12,
-        opacity: 0.75,
+        justifyContent: "center",
+        gap: "clamp(16px, 2.5vw, 28px)",
+        width: "100%",
+        height: "100%",
+        padding: "clamp(12px, 2vw, 24px)",
+        fontFamily: "'Inter', sans-serif",
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          top: "clamp(-12px, -1.5vw, -8px)",
-          left: "50%",
-          transform: "translateX(-50%)",
-          background: "rgba(10,10,10,0.9)",
-          padding: "2px clamp(6px, 0.8vw, 10px)",
-          borderRadius: 4,
-          border: "1px solid rgba(212,168,67,0.2)",
-          fontFamily: "'Inter', sans-serif",
-          fontWeight: 600,
-          fontSize: "clamp(8px, 1vw, 11px)",
-          letterSpacing: "1px",
-          textTransform: "uppercase",
-          color: "rgba(212,168,67,0.6)",
-          whiteSpace: "nowrap",
-        }}
-      >
-        {lang === "br" ? `MÃO ${index + 1}` : `HAND ${index + 1}`}
-      </div>
-      <div style={{ display: "flex", gap: "clamp(-6px, -0.8vw, -10px)" }}>
-        {hand.cards.map((card, i) => (
-          <BlackjackCard
-            key={`h${index}c${i}`}
-            rank={card.rank}
-            suit={card.suit}
-            faceUp={true}
-            index={i}
-            animate={false}
-          />
-        ))}
-      </div>
-      <HandTotalBadge
-        total={hand.total}
-        isSoft={hand.isSoft}
-        isBust={hand.isBust}
-        softAlt={hand.isSoft ? hand.total - 10 : undefined}
-      />
-    </div>
-  );
-}
-
-// ============================================================================
-// SUBCOMPONENTE: PAINEL DE ACOES DIMMED (tudo cinza escuro)
-// ============================================================================
-
-interface PainelAcoesDimmedProps {
-  lang: Lang;
-  totalBet: number;
-}
-
-function PainelAcoesDimmed({ lang, totalBet }: PainelAcoesDimmedProps) {
-  return (
-    <div
-      style={{
-        position: "relative",
-        flexShrink: 0,
-        width: "clamp(220px, 22vw, 300px)",
-        padding: "clamp(10px, 1.2vw, 16px)",
-        display: "flex",
-        flexDirection: "column",
-        background:
-          "linear-gradient(180deg, rgba(20,16,8,0.95) 0%, rgba(10,8,4,0.9) 50%, rgba(20,16,8,0.95) 100%)",
-        borderLeft: "1px solid rgba(212,168,67,0.3)",
-        boxShadow:
-          "inset 1px 0 0 rgba(212,168,67,0.4), inset 3px 0 0 rgba(0,0,0,0.4), inset 4px 0 0 rgba(212,168,67,0.15), -4px 0 20px rgba(0,0,0,0.6)",
-        backgroundImage:
-          "radial-gradient(circle at 20% 30%, rgba(212,168,67,0.04) 0%, transparent 40%), radial-gradient(circle at 80% 70%, rgba(212,168,67,0.03) 0%, transparent 40%)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-      }}
-    >
-      <div
-        style={{
-          position: "absolute",
-          top: "clamp(8px, 1vw, 14px)",
-          bottom: "clamp(8px, 1vw, 14px)",
-          left: "clamp(8px, 1vw, 14px)",
-          right: "clamp(8px, 1vw, 14px)",
-          border: "1px solid rgba(212,168,67,0.2)",
-          borderRadius: 2,
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      />
-
+      {/* ================================================================== */}
+      {/* MESA CENTRAL */}
+      {/* ================================================================== */}
       <div
         style={{
           position: "relative",
-          zIndex: 1,
           display: "flex",
           flexDirection: "column",
-          height: "100%",
-          padding: "clamp(16px, 2vw, 24px) clamp(12px, 1.5vw, 18px)",
-          gap: "clamp(12px, 1.5vw, 20px)",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: "clamp(280px, 55vw, 600px)",
+          minHeight: "clamp(280px, 50vh, 500px)",
+          padding: "clamp(16px, 2.5vw, 32px)",
+          background: "radial-gradient(ellipse at 50% 50%, #1a472a, #0f2d1a 70%, #091a0f)",
+          backgroundImage: `
+            radial-gradient(circle, rgba(255,255,255,0.02) 1px, transparent 1px),
+            radial-gradient(ellipse at 50% 50%, #1a472a, #0f2d1a 70%, #091a0f)
+          `,
+          backgroundSize: "8px 8px, 100% 100%",
+          borderRadius: "clamp(12px, 2vw, 20px)",
+          border: "3px solid rgba(212,168,67,0.4)",
+          boxShadow: `
+            0 0 30px rgba(212,168,67,0.08),
+            0 8px 32px rgba(0,0,0,0.4),
+            inset 0 0 150px rgba(0,0,0,0.3)
+          `,
         }}
       >
-        {/* Label AGUARDANDO */}
+        {/* ============================================================== */}
+        {/* SIDE BET: PERFECT PAIRS (left) */}
+        {/* ============================================================== */}
         <div
           style={{
-            position: "relative",
-            alignSelf: "stretch",
+            position: "absolute",
+            left: "clamp(-56px, -8vw, -72px)",
+            top: "50%",
+            transform: "translateY(-50%)",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: "clamp(8px, 1vw, 12px)",
+            width: "clamp(48px, 7vw, 64px)",
+            height: "clamp(56px, 8vw, 72px)",
+            border: "2px solid rgba(212,168,67,0.25)",
+            borderRadius: "8px",
+            background: "rgba(0,0,0,0.3)",
           }}
         >
-          <div
-            style={{
-              flex: 1,
-              height: 1,
-              background:
-                "linear-gradient(90deg, transparent, rgba(212,168,67,0.3))",
-            }}
-          />
           <span
             style={{
               fontFamily: "'Cinzel', serif",
               fontWeight: 700,
-              fontSize: "clamp(10px, 1.1vw, 13px)",
-              color: "rgba(212,168,67,0.5)",
-              letterSpacing: "3px",
-              textTransform: "uppercase",
-              padding: "0 clamp(4px, 0.5vw, 6px)",
-              whiteSpace: "nowrap",
+              fontSize: "clamp(9px, 1.2vw, 12px)",
+              color: "rgba(212,168,67,0.6)",
+              letterSpacing: "1px",
             }}
           >
-            {lang === "br" ? "AGUARDANDO" : "WAITING"}
+            PP
           </span>
-          <div
+          <span
             style={{
-              flex: 1,
-              height: 1,
-              background:
-                "linear-gradient(90deg, rgba(212,168,67,0.3), transparent)",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 700,
+              fontSize: "clamp(10px, 1.4vw, 14px)",
+              color: "#00E676",
+              marginTop: "4px",
             }}
-          />
+          >
+            6:1
+          </span>
         </div>
 
-        {/* Botoes TODOS dimmed */}
+        {/* ============================================================== */}
+        {/* SIDE BET: 21+3 (right) */}
+        {/* ============================================================== */}
+        <div
+          style={{
+            position: "absolute",
+            right: "clamp(-56px, -8vw, -72px)",
+            top: "50%",
+            transform: "translateY(-50%)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            width: "clamp(48px, 7vw, 64px)",
+            height: "clamp(56px, 8vw, 72px)",
+            border: "2px solid rgba(212,168,67,0.25)",
+            borderRadius: "8px",
+            background: "rgba(0,0,0,0.3)",
+          }}
+        >
+          <span
+            style={{
+              fontFamily: "'Cinzel', serif",
+              fontWeight: 700,
+              fontSize: "clamp(9px, 1.2vw, 12px)",
+              color: "rgba(212,168,67,0.6)",
+              letterSpacing: "1px",
+            }}
+          >
+            21+3
+          </span>
+          <span
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 700,
+              fontSize: "clamp(10px, 1.4vw, 14px)",
+              color: "rgba(255,255,255,0.3)",
+              marginTop: "4px",
+            }}
+          >
+            -
+          </span>
+        </div>
+
+        {/* ============================================================== */}
+        {/* DEALER AREA */}
+        {/* ============================================================== */}
         <div
           style={{
             display: "flex",
             flexDirection: "column",
-            gap: "clamp(8px, 1vw, 12px)",
-            pointerEvents: "none",
+            alignItems: "center",
+            gap: "clamp(8px, 1.2vw, 12px)",
           }}
         >
-          {ACTION_BUTTONS.map((btn) => {
-            const iconPath = btn.iconKey ? ASSETS[btn.iconKey] : null;
-            const textObj = TEXTS[btn.textKey] as {
-              br: string;
-              en: string;
-            };
-            const label = lang === "br" ? textObj.br : textObj.en;
+          {/* Dealer label */}
+          <span
+            style={{
+              fontFamily: "'Cinzel', serif",
+              fontWeight: 700,
+              fontSize: "clamp(10px, 1.4vw, 14px)",
+              color: "rgba(255,255,255,0.1)",
+              textTransform: "uppercase",
+              letterSpacing: "3px",
+            }}
+          >
+            {t.dealer}
+          </span>
 
-            return (
-              <div
-                key={btn.id}
-                style={{
-                  padding:
-                    "clamp(10px, 1.2vw, 14px) clamp(14px, 1.8vw, 20px)",
-                  background: "#1A1A1A",
-                  border: "1.5px solid rgba(255,255,255,0.05)",
-                  borderRadius: 8,
-                  color: "#FFFFFF",
-                  fontFamily: "'Cinzel', serif",
-                  fontWeight: 700,
-                  fontSize: "clamp(11px, 1.3vw, 15px)",
-                  letterSpacing: "2px",
-                  textTransform: "uppercase",
-                  minHeight: 48,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: "clamp(6px, 0.8vw, 10px)",
-                  opacity: 0.3,
-                  cursor: "not-allowed",
-                  filter: "grayscale(0.5)",
-                }}
-              >
-                {iconPath && (
-                  <img
-                    src={iconPath}
-                    alt=""
-                    style={{
-                      width: "clamp(16px, 1.8vw, 22px)",
-                      height: "clamp(16px, 1.8vw, 22px)",
-                      flexShrink: 0,
-                      opacity: 0.5,
-                    }}
-                    draggable={false}
-                  />
-                )}
-                {label}
-              </div>
-            );
-          })}
+          {/* Dealer cards */}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "clamp(8px, 1.5vw, 16px)",
+            }}
+          >
+            {/* Card 1: 10 of Hearts (always face-up) */}
+            <BlackjackCard card={DEALER_CARDS[0]} isFlipped={true} />
+
+            {/* Card 2: K of Spades (hole card that flips) */}
+            <BlackjackCard
+              card={DEALER_CARDS[1]}
+              isFlipped={holeCardFlipped}
+              showGlow={showHoleCardGlow}
+            />
+
+            {/* Card 3: 6 of Diamonds (slides in) */}
+            <AnimatePresence>
+              {showThirdCard && (
+                <BlackjackCard
+                  card={DEALER_CARDS[2]}
+                  isFlipped={true}
+                  slideIn={true}
+                  delay={0}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* Dealer total badge */}
+          <TotalBadge
+            total={dealerTotal}
+            isBust={dealerBust}
+            isDealer={!dealerBust}
+            bustLabel={t.bust}
+          />
         </div>
 
-        {/* Total da aposta */}
-        <div style={{ marginTop: "auto" }}>
+        {/* ============================================================== */}
+        {/* DIVIDER */}
+        {/* ============================================================== */}
+        <div
+          style={{
+            width: "60%",
+            height: "1px",
+            background: "linear-gradient(90deg, transparent, rgba(212,168,67,0.15), transparent)",
+          }}
+        />
+
+        {/* ============================================================== */}
+        {/* PLAYER AREA */}
+        {/* ============================================================== */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: "clamp(8px, 1.2vw, 12px)",
+          }}
+        >
+          {/* Player cards (stacked with offset) */}
           <div
             style={{
               position: "relative",
-              width: "80%",
-              alignSelf: "center",
-              height: 2,
-              margin: "clamp(18px, 2vw, 28px) auto",
+              display: "flex",
+              alignItems: "center",
+              height: "clamp(67px, 11.2vw, 101px)",
+              width: "clamp(72px, 12vw, 108px)",
             }}
           >
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                right: 0,
-                height: 1,
-                background:
-                  "linear-gradient(90deg, transparent, rgba(212,168,67,0.4), transparent)",
-              }}
-            />
-            <div
-              style={{
-                position: "absolute",
-                top: -3,
-                left: "50%",
-                transform: "translateX(-50%) rotate(45deg)",
-                width: 6,
-                height: 6,
-                background: COLORS.goldPrimary,
-                boxShadow: "0 0 8px rgba(212,168,67,0.6)",
-              }}
-            />
+            {PLAYER_CARDS.map((card, index) => (
+              <div
+                key={`player-${index}`}
+                style={{
+                  position: index === 0 ? "relative" : "absolute",
+                  left: index === 0 ? 0 : "clamp(20px, 3.5vw, 32px)",
+                  zIndex: index,
+                }}
+              >
+                <BlackjackCard card={card} isFlipped={true} />
+              </div>
+            ))}
           </div>
 
-          <div
+          {/* Player total badge */}
+          <TotalBadge total={21} isBust={false} isDealer={false} bustLabel={t.bust} />
+
+          {/* Player label */}
+          <span
             style={{
-              position: "relative",
-              alignSelf: "stretch",
-              margin: "0 clamp(4px, 0.5vw, 8px)",
-              padding: "clamp(14px, 1.8vw, 22px) clamp(12px, 1.5vw, 18px)",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "clamp(6px, 0.8vw, 10px)",
-              background:
-                "radial-gradient(ellipse at 50% 50%, rgba(0,77,37,0.3) 0%, rgba(0,0,0,0.5) 100%)",
-              border: "1px solid rgba(0,230,118,0.2)",
-              borderRadius: 6,
-              boxShadow:
-                "inset 0 0 20px rgba(0,230,118,0.1), inset 0 1px 0 rgba(0,230,118,0.15), 0 2px 8px rgba(0,0,0,0.5)",
+              fontFamily: "'Cinzel', serif",
+              fontWeight: 700,
+              fontSize: "clamp(10px, 1.4vw, 14px)",
+              color: "rgba(255,255,255,0.1)",
+              textTransform: "uppercase",
+              letterSpacing: "3px",
             }}
           >
-            <span
-              style={{
-                fontFamily: "'Cinzel', serif",
-                fontWeight: 600,
-                fontSize: "clamp(9px, 1vw, 11px)",
-                color: "rgba(212,168,67,0.6)",
-                letterSpacing: "2px",
-                textTransform: "uppercase",
-              }}
-            >
-              {t(TEXTS.activeBet, lang)}
-            </span>
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono', monospace",
-                fontWeight: 800,
-                fontSize: "clamp(22px, 2.8vw, 36px)",
-                color: COLORS.greenNeon,
-                textShadow:
-                  "0 0 16px rgba(0,230,118,0.8), 0 0 32px rgba(0,230,118,0.4), 0 1px 2px rgba(0,0,0,0.8)",
-                letterSpacing: "1px",
-                lineHeight: 1,
-              }}
-            >
-              <span
-                style={{ fontSize: "0.55em", opacity: 0.75, marginRight: 2 }}
-              >
-                G$
-              </span>
-              {totalBet}
-            </span>
-          </div>
+            {t.player}
+          </span>
+        </div>
+      </div>
+
+      {/* ================================================================== */}
+      {/* CONTROLS (DIMMED) */}
+      {/* ================================================================== */}
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "clamp(8px, 1.2vw, 12px)",
+        }}
+      >
+        {/* Dealer playing indicator */}
+        <span
+          style={{
+            fontFamily: "'Cinzel', serif",
+            fontWeight: 600,
+            fontSize: "clamp(11px, 1.5vw, 14px)",
+            color: "rgba(212,168,67,0.5)",
+            textTransform: "uppercase",
+            letterSpacing: "2px",
+          }}
+        >
+          {t.dealerPlaying}
+        </span>
+
+        {/* Action buttons (all disabled) */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "clamp(6px, 1vw, 10px)",
+            flexWrap: "wrap",
+          }}
+        >
+          <ActionButton label={t.hit} />
+          <ActionButton label={t.stand} />
+          <ActionButton label={t.double} />
+          <ActionButton label={t.split} />
+          <ActionButton label={t.surrender} />
         </div>
       </div>
     </div>
