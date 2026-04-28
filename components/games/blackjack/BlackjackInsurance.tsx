@@ -1,59 +1,64 @@
 "use client";
 
-// Blackjack Tela 3 — INSURANCE MODAL (Seguro contra Blackjack do Dealer)
-// Overlay modal com timer SVG circular 10s (urgente vermelho pulsando <3s)
+// BlackjackInsurance.tsx — TELA 5: Modal de Seguro contra Blackjack do Dealer
+// Overlay modal com timer SVG circular 10s, urgente vermelho pulsando <3s
 // Botoes SIM (gradient verde) + NAO (ghost dourado)
+// CSS inline, ZERO Tailwind, fontes Cinzel/Inter/JetBrains Mono
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ASSETS, COLORS, TEXTS, t, RULES } from "./BlackjackConstants";
-import type { Lang } from "./BlackjackTypes";
 
 // ============================================================================
-// PROPS
+// TIPOS
 // ============================================================================
 
-export interface BlackjackInsuranceProps {
-  lang: Lang;
-  /** Aposta atual do jogador (seguro = metade disso) */
-  betAmount: number;
-  /** Callback ao clicar SIM */
+interface BlackjackInsuranceProps {
   onAccept: () => void;
-  /** Callback ao clicar NAO ou timer zerar */
   onDecline: () => void;
-  /** Tempo inicial do timer (default: 10s) */
-  initialTime?: number;
+  betAmount: number;
+  lang: "br" | "in";
 }
 
 // ============================================================================
-// COMPONENTE
+// TEXTOS i18n
+// ============================================================================
+
+const TEXTS = {
+  title: { br: "SEGURO?", in: "INSURANCE?" },
+  explanation: {
+    br: "O dealer mostra um As. Seguro paga 2:1 se o dealer tiver Blackjack.",
+    in: "Dealer shows an Ace. Insurance pays 2:1 if dealer has Blackjack.",
+  },
+  cost: { br: "Custo:", in: "Cost:" },
+  yes: { br: "SIM", in: "YES" },
+  no: { br: "NAO", in: "NO" },
+};
+
+// ============================================================================
+// COMPONENTE PRINCIPAL
 // ============================================================================
 
 export default function BlackjackInsurance({
-  lang,
-  betAmount,
   onAccept,
   onDecline,
-  initialTime = RULES.insuranceTimerSeconds,
+  betAmount,
+  lang,
 }: BlackjackInsuranceProps) {
-  const [timeLeft, setTimeLeft] = useState(initialTime);
+  const [timeLeft, setTimeLeft] = useState(10);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const declinedRef = useRef(false);
+  const hasDeclinedRef = useRef(false);
 
-  // ==========================================================================
+  // ========================================================================
   // TIMER COUNTDOWN
-  // ==========================================================================
+  // ========================================================================
 
   useEffect(() => {
-    setTimeLeft(initialTime);
-    declinedRef.current = false;
-
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           if (timerRef.current) clearInterval(timerRef.current);
-          if (!declinedRef.current) {
-            declinedRef.current = true;
+          if (!hasDeclinedRef.current) {
+            hasDeclinedRef.current = true;
             onDecline();
           }
           return 0;
@@ -65,12 +70,11 @@ export default function BlackjackInsurance({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialTime]);
+  }, [onDecline]);
 
-  // ==========================================================================
+  // ========================================================================
   // HANDLERS
-  // ==========================================================================
+  // ========================================================================
 
   const handleAccept = () => {
     if (timerRef.current) clearInterval(timerRef.current);
@@ -79,383 +83,287 @@ export default function BlackjackInsurance({
 
   const handleDecline = () => {
     if (timerRef.current) clearInterval(timerRef.current);
-    declinedRef.current = true;
+    hasDeclinedRef.current = true;
     onDecline();
   };
 
-  // ==========================================================================
+  // ========================================================================
   // CALCULOS
-  // ==========================================================================
+  // ========================================================================
 
   const insuranceCost = Math.floor(betAmount / 2);
-  const isUrgent = timeLeft <= 3;
-  const circumference = 2 * Math.PI * 34; // raio 34 = circumferencia ~213.6
+  const isUrgent = timeLeft < 3;
+  const circumference = 2 * Math.PI * 20; // ~126
+  const strokeOffset = circumference * (1 - timeLeft / 10);
 
-  // ==========================================================================
+  // ========================================================================
   // RENDER
-  // ==========================================================================
+  // ========================================================================
 
   return (
     <AnimatePresence>
+      {/* OVERLAY FUNDO */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.3 }}
+        transition={{ duration: 0.25 }}
         style={{
-          position: "fixed",
+          position: "absolute",
           inset: 0,
-          zIndex: 100,
+          zIndex: 90,
           background: "rgba(0,0,0,0.7)",
-          backdropFilter: "blur(8px)",
-          WebkitBackdropFilter: "blur(8px)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "clamp(16px, 2vw, 32px)",
         }}
       >
+        {/* MODAL CENTRAL */}
         <motion.div
-          initial={{ scale: 0.85, opacity: 0, y: -20 }}
-          animate={{ scale: 1, opacity: 1, y: 0 }}
-          exit={{ scale: 0.85, opacity: 0, y: -20 }}
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
           transition={{ type: "spring", stiffness: 300, damping: 25 }}
           style={{
-            position: "relative",
-            width: "clamp(320px, 50vw, 520px)",
-            padding: "clamp(24px, 3vw, 40px) clamp(20px, 2.5vw, 36px)",
-            background:
-              "linear-gradient(180deg, rgba(20,16,8,0.98) 0%, rgba(10,8,4,0.96) 50%, rgba(20,16,8,0.98) 100%)",
-            backgroundImage:
-              "radial-gradient(ellipse at 50% 0%, rgba(212,168,67,0.08) 0%, transparent 60%), radial-gradient(ellipse at 50% 100%, rgba(212,168,67,0.04) 0%, transparent 60%)",
-            border: "1px solid rgba(212,168,67,0.5)",
-            borderRadius: 8,
+            background: "rgba(10,10,10,0.95)",
+            border: "1.5px solid rgba(212,168,67,0.3)",
+            borderRadius: 16,
+            padding: "clamp(20px, 4vw, 40px)",
+            minWidth: "clamp(260px, 45vw, 380px)",
             boxShadow:
-              "inset 0 0 0 1px rgba(212,168,67,0.15), inset 0 0 40px rgba(0,0,0,0.6), 0 20px 60px rgba(0,0,0,0.8), 0 0 40px rgba(212,168,67,0.15)",
+              "0 8px 32px rgba(0,0,0,0.6), 0 0 20px rgba(212,168,67,0.05)",
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: "clamp(16px, 2vw, 24px)",
+            gap: "clamp(12px, 2vw, 20px)",
           }}
         >
-          {/* Moldura interna */}
+          {/* ICONE ESCUDO/? */}
           <div
             style={{
-              position: "absolute",
-              top: "clamp(8px, 1vw, 12px)",
-              bottom: "clamp(8px, 1vw, 12px)",
-              left: "clamp(8px, 1vw, 12px)",
-              right: "clamp(8px, 1vw, 12px)",
-              border: "1px solid rgba(212,168,67,0.2)",
-              borderRadius: 4,
-              pointerEvents: "none",
-              zIndex: 0,
-            }}
-          />
-
-          {/* 1. BADGE "DEALER MOSTRA AS" */}
-          <div
-            style={{
-              position: "relative",
-              zIndex: 1,
+              width: "clamp(36px, 5vw, 48px)",
+              height: "clamp(36px, 5vw, 48px)",
+              borderRadius: "50%",
+              background:
+                "linear-gradient(180deg, rgba(212,168,67,0.25) 0%, rgba(212,168,67,0.1) 100%)",
+              border: "1.5px solid rgba(212,168,67,0.4)",
               display: "flex",
               alignItems: "center",
-              gap: "clamp(8px, 1vw, 12px)",
-              padding: "clamp(6px, 0.8vw, 10px) clamp(14px, 1.8vw, 20px)",
-              background: "rgba(212,168,67,0.1)",
-              border: "1px solid rgba(212,168,67,0.3)",
-              borderRadius: 20,
+              justifyContent: "center",
+              boxShadow: "0 0 12px rgba(212,168,67,0.15)",
             }}
           >
-            <img
-              src={ASSETS.iconInsurance}
-              alt=""
-              style={{
-                width: "clamp(18px, 2vw, 24px)",
-                height: "clamp(18px, 2vw, 24px)",
-              }}
-              draggable={false}
-            />
             <span
               style={{
                 fontFamily: "'Cinzel', serif",
                 fontWeight: 700,
-                fontSize: "clamp(9px, 1vw, 11px)",
-                color: COLORS.goldPrimary,
-                letterSpacing: "3px",
-                textTransform: "uppercase",
+                fontSize: "clamp(16px, 2.5vw, 24px)",
+                color: "#D4A843",
               }}
             >
-              {t(TEXTS.insuranceBadge, lang)}
+              ?
             </span>
           </div>
 
-          {/* 2. TITULO "SEGURO?" */}
+          {/* TITULO */}
           <h2
             style={{
-              position: "relative",
-              zIndex: 1,
               margin: 0,
               fontFamily: "'Cinzel', serif",
-              fontWeight: 800,
-              fontSize: "clamp(24px, 3.5vw, 42px)",
-              color: COLORS.goldLight,
-              letterSpacing: "4px",
-              textTransform: "uppercase",
-              textShadow:
-                "0 0 20px rgba(255,215,0,0.5), 0 0 40px rgba(212,168,67,0.3), 0 2px 4px rgba(0,0,0,0.8)",
+              fontWeight: 700,
+              fontSize: "clamp(18px, 3vw, 28px)",
+              color: "#D4A843",
               textAlign: "center",
+              letterSpacing: "2px",
             }}
           >
-            {t(TEXTS.insuranceTitle, lang)}
+            {TEXTS.title[lang]}
           </h2>
 
-          {/* 3. TEXTO EXPLICATIVO */}
+          {/* EXPLICACAO */}
           <p
             style={{
-              position: "relative",
-              zIndex: 1,
               margin: 0,
-              maxWidth: "90%",
               fontFamily: "'Inter', sans-serif",
               fontWeight: 400,
-              fontSize: "clamp(12px, 1.3vw, 15px)",
-              color: "rgba(255,255,255,0.75)",
-              lineHeight: 1.5,
+              fontSize: "clamp(12px, 1.5vw, 14px)",
+              color: "rgba(255,255,255,0.6)",
               textAlign: "center",
+              lineHeight: 1.5,
+              maxWidth: "90%",
             }}
           >
-            {t(TEXTS.insuranceText, lang)}
+            {TEXTS.explanation[lang]}
           </p>
 
-          {/* 4. SEPARADOR COM DIAMANTE */}
+          {/* VALOR DO SEGURO */}
           <div
             style={{
-              position: "relative",
-              zIndex: 1,
-              width: "70%",
-              height: 1,
-              background:
-                "linear-gradient(90deg, transparent, rgba(212,168,67,0.4), transparent)",
-              margin: "clamp(4px, 0.5vw, 8px) 0",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                top: -3,
-                left: "50%",
-                transform: "translateX(-50%) rotate(45deg)",
-                width: 6,
-                height: 6,
-                background: COLORS.goldPrimary,
-                boxShadow: "0 0 8px rgba(212,168,67,0.6)",
-              }}
-            />
-          </div>
-
-          {/* 5. VALOR DO SEGURO */}
-          <div
-            style={{
-              position: "relative",
-              zIndex: 1,
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "clamp(4px, 0.5vw, 6px)",
+              alignItems: "baseline",
+              gap: "clamp(6px, 0.8vw, 10px)",
             }}
           >
             <span
               style={{
-                fontFamily: "'Cinzel', serif",
-                fontWeight: 600,
-                fontSize: "clamp(9px, 1vw, 11px)",
-                color: "rgba(212,168,67,0.6)",
-                letterSpacing: "2px",
-                textTransform: "uppercase",
+                fontFamily: "'Inter', sans-serif",
+                fontWeight: 500,
+                fontSize: "clamp(12px, 1.5vw, 14px)",
+                color: "rgba(255,255,255,0.5)",
               }}
             >
-              {t(TEXTS.insuranceCost, lang)}
+              {TEXTS.cost[lang]}
             </span>
             <span
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
-                fontWeight: 800,
-                fontSize: "clamp(22px, 2.8vw, 36px)",
-                color: COLORS.greenNeon,
-                textShadow:
-                  "0 0 16px rgba(0,230,118,0.6), 0 1px 2px rgba(0,0,0,0.8)",
-                letterSpacing: "1px",
-                lineHeight: 1,
+                fontWeight: 700,
+                fontSize: "clamp(14px, 2vw, 20px)",
+                color: "#FFD700",
               }}
             >
-              <span style={{ fontSize: "0.55em", opacity: 0.75 }}>G$</span>
-              {insuranceCost}
+              G${insuranceCost}
             </span>
           </div>
 
-          {/* 6. TIMER SVG CIRCULAR */}
-          <CircularTimer
-            timeLeft={timeLeft}
-            initialTime={initialTime}
-            isUrgent={isUrgent}
-            circumference={circumference}
-          />
-
-          {/* 7. BOTOES SIM / NAO */}
+          {/* TIMER SVG CIRCULAR */}
           <div
             style={{
+              width: 56,
+              height: 56,
+              margin: "clamp(8px, 1.5vw, 16px) auto",
               position: "relative",
-              zIndex: 1,
               display: "flex",
-              gap: "clamp(12px, 1.5vw, 20px)",
-              marginTop: "clamp(8px, 1vw, 12px)",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            {/* BOTAO SIM */}
+            <svg
+              viewBox="0 0 48 48"
+              style={{
+                width: "100%",
+                height: "100%",
+                position: "absolute",
+                top: 0,
+                left: 0,
+              }}
+            >
+              {/* Circle background */}
+              <circle
+                cx={24}
+                cy={24}
+                r={20}
+                fill="none"
+                stroke="rgba(255,255,255,0.1)"
+                strokeWidth={3}
+              />
+              {/* Circle progress */}
+              <circle
+                cx={24}
+                cy={24}
+                r={20}
+                fill="none"
+                stroke={isUrgent ? "#FF3B3B" : "#D4A843"}
+                strokeWidth={3}
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeOffset}
+                style={{
+                  transform: "rotate(-90deg)",
+                  transformOrigin: "center",
+                  transition: "stroke-dashoffset 1s linear, stroke 0.3s ease",
+                }}
+              />
+            </svg>
+
+            {/* Valor central */}
+            <motion.span
+              key={timeLeft}
+              initial={{ scale: 1.2, opacity: 0 }}
+              animate={{
+                scale: 1,
+                opacity: isUrgent ? [1, 0.4, 1] : 1,
+              }}
+              transition={{
+                scale: { duration: 0.2 },
+                opacity: isUrgent
+                  ? { duration: 0.6, repeat: Infinity, ease: "easeInOut" }
+                  : { duration: 0.2 },
+              }}
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontWeight: 700,
+                fontSize: 16,
+                color: isUrgent ? "#FF3B3B" : "#D4A843",
+                zIndex: 1,
+              }}
+            >
+              {timeLeft}
+            </motion.span>
+          </div>
+
+          {/* BOTOES */}
+          <div
+            style={{
+              display: "flex",
+              gap: "clamp(10px, 1.5vw, 16px)",
+              width: "100%",
+              justifyContent: "center",
+            }}
+          >
+            {/* SIM / YES */}
             <motion.button
-              whileHover={{ y: -2 }}
+              whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleAccept}
               style={{
-                padding: "clamp(12px, 1.5vw, 16px) clamp(24px, 3vw, 40px)",
-                background:
-                  "linear-gradient(180deg, #00E676 0%, #00C853 50%, #004D25 100%)",
-                border: "1.5px solid rgba(0,230,118,0.5)",
-                borderRadius: 8,
+                flex: 1,
+                maxWidth: 140,
+                minHeight: 44,
+                background: "linear-gradient(180deg, #00C853, #004D25)",
+                border: "1.5px solid rgba(0,230,118,0.3)",
+                borderRadius: 10,
                 color: "#FFFFFF",
                 fontFamily: "'Cinzel', serif",
                 fontWeight: 700,
-                fontSize: "clamp(12px, 1.3vw, 15px)",
-                letterSpacing: "3px",
+                fontSize: "clamp(12px, 1.5vw, 14px)",
+                letterSpacing: "1.5px",
                 textTransform: "uppercase",
                 cursor: "pointer",
-                minHeight: 48,
-                minWidth: "clamp(100px, 12vw, 140px)",
-                boxShadow:
-                  "0 4px 12px rgba(0,200,83,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
-                textShadow: "0 1px 2px rgba(0,0,0,0.6)",
+                boxShadow: "0 4px 16px rgba(0,200,83,0.25)",
               }}
             >
-              {t(TEXTS.yes, lang)}
+              {TEXTS.yes[lang]}
             </motion.button>
 
-            {/* BOTAO NAO (ghost dourado) */}
+            {/* NAO / NO */}
             <motion.button
-              whileHover={{ y: -2, borderColor: "rgba(212,168,67,0.7)" }}
+              whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
               onClick={handleDecline}
               style={{
-                padding: "clamp(12px, 1.5vw, 16px) clamp(24px, 3vw, 40px)",
+                flex: 1,
+                maxWidth: 140,
+                minHeight: 44,
                 background: "transparent",
-                border: "1.5px solid rgba(212,168,67,0.4)",
-                borderRadius: 8,
-                color: COLORS.goldPrimary,
+                border: "1.5px solid rgba(212,168,67,0.3)",
+                borderRadius: 10,
+                color: "#D4A843",
                 fontFamily: "'Cinzel', serif",
                 fontWeight: 700,
-                fontSize: "clamp(12px, 1.3vw, 15px)",
-                letterSpacing: "3px",
+                fontSize: "clamp(12px, 1.5vw, 14px)",
+                letterSpacing: "1.5px",
                 textTransform: "uppercase",
                 cursor: "pointer",
-                minHeight: 48,
-                minWidth: "clamp(100px, 12vw, 140px)",
-                textShadow: "0 0 8px rgba(212,168,67,0.3)",
               }}
             >
-              {t(TEXTS.no, lang)}
+              {TEXTS.no[lang]}
             </motion.button>
           </div>
         </motion.div>
       </motion.div>
     </AnimatePresence>
-  );
-}
-
-// ============================================================================
-// SUBCOMPONENTE: CIRCULAR TIMER (SVG)
-// ============================================================================
-
-interface CircularTimerProps {
-  timeLeft: number;
-  initialTime: number;
-  isUrgent: boolean;
-  circumference: number;
-}
-
-function CircularTimer({
-  timeLeft,
-  initialTime,
-  isUrgent,
-  circumference,
-}: CircularTimerProps) {
-  return (
-    <div
-      style={{
-        position: "relative",
-        zIndex: 1,
-        width: "clamp(70px, 8vw, 90px)",
-        height: "clamp(70px, 8vw, 90px)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <svg
-        width="100%"
-        height="100%"
-        viewBox="0 0 80 80"
-        style={{
-          transform: "rotate(-90deg)",
-          animation: isUrgent
-            ? "bjInsuranceUrgent 0.5s ease infinite"
-            : "none",
-        }}
-      >
-        {/* Circle fundo */}
-        <circle
-          cx="40"
-          cy="40"
-          r="34"
-          fill="none"
-          stroke="rgba(255,255,255,0.08)"
-          strokeWidth="4"
-        />
-        {/* Circle progresso */}
-        <circle
-          cx="40"
-          cy="40"
-          r="34"
-          fill="none"
-          stroke={isUrgent ? COLORS.redSoft : COLORS.goldPrimary}
-          strokeWidth="4"
-          strokeLinecap="round"
-          strokeDasharray={circumference}
-          strokeDashoffset={circumference * (1 - timeLeft / initialTime)}
-          style={{
-            transition: "stroke-dashoffset 1s linear, stroke 0.3s ease",
-            filter: isUrgent
-              ? "drop-shadow(0 0 8px rgba(255,59,59,0.8))"
-              : "drop-shadow(0 0 8px rgba(212,168,67,0.5))",
-          }}
-        />
-      </svg>
-
-      {/* Contador central */}
-      <span
-        style={{
-          position: "absolute",
-          fontFamily: "'JetBrains Mono', monospace",
-          fontWeight: 800,
-          fontSize: "clamp(18px, 2.2vw, 26px)",
-          color: isUrgent ? COLORS.redSoft : COLORS.white,
-          textShadow: isUrgent
-            ? "0 0 10px rgba(255,59,59,0.8)"
-            : "0 1px 2px rgba(0,0,0,0.8)",
-          transition: "color 0.3s ease",
-        }}
-      >
-        {timeLeft}
-      </span>
-    </div>
   );
 }
