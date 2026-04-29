@@ -193,6 +193,34 @@ export function useCrashSound() {
     setTimeout(() => playTone(150, 200, 0.06, "square"), 100);
   }, [playTone]);
 
+  // Som de milestone (2x, 5x, 10x+)
+  const playMilestone = useCallback((level: number) => {
+    if (level <= 2) {
+      playTone(1200, 80, 0.06, "sine");
+    } else if (level <= 5) {
+      playTone(1200, 80, 0.06, "sine");
+      setTimeout(() => playTone(1600, 80, 0.05, "sine"), 60);
+    } else {
+      playTone(800, 60, 0.07, "sine");
+      setTimeout(() => playTone(1000, 60, 0.06, "sine"), 50);
+      setTimeout(() => playTone(1200, 80, 0.05, "sine"), 100);
+    }
+  }, [playTone]);
+
+  // Som de big win (>=5x cashout)
+  const playBigWin = useCallback(() => {
+    playTone(523, 150, 0.08, "sine");
+    setTimeout(() => playTone(659, 150, 0.07, "sine"), 120);
+    setTimeout(() => playTone(784, 150, 0.06, "sine"), 240);
+    setTimeout(() => playTone(1047, 200, 0.08, "sine"), 360);
+    setTimeout(() => playTone(1319, 300, 0.06, "sine"), 500);
+  }, [playTone]);
+
+  // Som de aposta rejeitada (saldo insuficiente)
+  const playBetReject = useCallback(() => {
+    playTone(200, 150, 0.08, "square");
+  }, [playTone]);
+
   // Cleanup
   const cleanup = useCallback(() => {
     stopRisingTone();
@@ -212,6 +240,9 @@ export function useCrashSound() {
     playCashout,
     playCrash,
     playLose,
+    playMilestone,
+    playBigWin,
+    playBetReject,
     cleanup,
   };
 }

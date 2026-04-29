@@ -50,7 +50,7 @@ export function CrashControls({
   lang,
 }: CrashControlsProps) {
   const { config: cc } = useCurrencyConfig();
-  const canBet = (phase === "WAITING" || phase === "BETTING") && !hasPlacedBet;
+  const canBet = phase === "BETTING" && !hasPlacedBet;
   const canCashout = phase === "RISING" && hasPlacedBet && !hasCashedOut;
   const potentialWin = betAmount * multiplier;
 
@@ -161,7 +161,7 @@ export function CrashControls({
           </motion.button>
         </div>
 
-        {/* Quick bet buttons */}
+        {/* Quick bet buttons + MIN/MAX */}
         <div
           style={{
             display: "flex",
@@ -169,6 +169,28 @@ export function CrashControls({
             marginTop: "clamp(6px, 0.8vw, 10px)",
           }}
         >
+          <motion.button
+            whileHover={{ scale: 1.05, borderColor: "rgba(212,168,67,0.6)" }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setBetAmount(1)}
+            disabled={!canBet}
+            style={{
+              flex: 1,
+              padding: "clamp(4px, 0.6vw, 8px)",
+              background: "transparent",
+              border: "1px solid rgba(212,168,67,0.3)",
+              borderRadius: "6px",
+              fontFamily: "var(--font-cinzel)",
+              fontSize: "clamp(8px, 0.8vw, 11px)",
+              fontWeight: 700,
+              color: COLORS.gold,
+              cursor: canBet ? "pointer" : "not-allowed",
+              opacity: canBet ? 1 : 0.5,
+              letterSpacing: "0.5px",
+            }}
+          >
+            MIN
+          </motion.button>
           {QUICK_BETS.map((amount) => (
             <motion.button
               key={amount}
@@ -193,6 +215,28 @@ export function CrashControls({
               {amount}
             </motion.button>
           ))}
+          <motion.button
+            whileHover={{ scale: 1.05, borderColor: "rgba(212,168,67,0.6)" }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setBetAmount(Math.min(10000, saldo))}
+            disabled={!canBet}
+            style={{
+              flex: 1,
+              padding: "clamp(4px, 0.6vw, 8px)",
+              background: "transparent",
+              border: "1px solid rgba(212,168,67,0.3)",
+              borderRadius: "6px",
+              fontFamily: "var(--font-cinzel)",
+              fontSize: "clamp(8px, 0.8vw, 11px)",
+              fontWeight: 700,
+              color: COLORS.gold,
+              cursor: canBet ? "pointer" : "not-allowed",
+              opacity: canBet ? 1 : 0.5,
+              letterSpacing: "0.5px",
+            }}
+          >
+            MAX
+          </motion.button>
         </div>
       </div>
 
