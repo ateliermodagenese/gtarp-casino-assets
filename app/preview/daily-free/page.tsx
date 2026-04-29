@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import DailyFreeIdle from "@/components/games/daily-free/DailyFreeIdle";
+import DailyFreeResult from "@/components/games/daily-free/DailyFreeResult";
 
 const mockCalendarDays = Array.from({ length: 30 }, (_, i) => ({
   day: i + 1,
@@ -12,6 +14,9 @@ const mockCalendarDays = Array.from({ length: 30 }, (_, i) => ({
 }));
 
 export default function DailyFreePreview() {
+  const [showResult, setShowResult] = useState(false);
+  const [prize] = useState(200);
+
   return (
     <div
       style={{
@@ -58,10 +63,20 @@ export default function DailyFreePreview() {
           calendarDays={mockCalendarDays}
           currentStreak={12}
           milestones={{ 7: true, 14: false, 30: false }}
-          onSpin={() => console.log("Girando a roda!")}
+          onSpin={() => setShowResult(true)}
           lang="br"
         />
       </div>
+
+      {/* Overlay de resultado */}
+      {showResult && (
+        <DailyFreeResult
+          prize={prize}
+          streakDay={12}
+          onCollect={() => setShowResult(false)}
+          lang="br"
+        />
+      )}
     </div>
   );
 }
