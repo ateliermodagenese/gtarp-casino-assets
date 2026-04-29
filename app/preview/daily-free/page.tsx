@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import DailyFreeIdle from "@/components/games/daily-free/DailyFreeIdle";
 import DailyFreeResult from "@/components/games/daily-free/DailyFreeResult";
+import DailyFreeMilestone from "@/components/games/daily-free/DailyFreeMilestone";
 
 const mockCalendarDays = Array.from({ length: 30 }, (_, i) => ({
   day: i + 1,
@@ -13,9 +14,55 @@ const mockCalendarDays = Array.from({ length: 30 }, (_, i) => ({
     | "missed",
 }));
 
+// Prizes on the wheel
+const PRIZES = [1000, 100, 50, 200, 200, 50, 100, 500];
+
+type GameState = "idle" | "result" | "milestone";
+
 export default function DailyFreePreview() {
-  const [showResult, setShowResult] = useState(false);
-  const [prize] = useState(200);
+  const [gameState, setGameState] = useState<GameState>("idle");
+  const [prize, setPrize] = useState(200);
+  const [currentStreak, setCurrentStreak] = useState(6); // Start at 6 to trigger 7-day milestone
+  const [pendingMilestone, setPendingMilestone] = useState<7 | 14 | 30 | null>(null);
+
+  // Handle spin
+  const handleSpin = useCallback(() => {
+    const prizeIndex = Math.floor(Math.random() * PRIZES.length);
+    setPrize(PRIZES[prizeIndex]);
+
+    // Increment streak
+    const newStreak = currentStreak + 1;
+    setCurrentStreak(newStreak);
+
+    // Check milestones
+    if (newStreak === 7 || newStreak === 14 || newStreak === 30) {
+      setPendingMilestone(newStreak as 7 | 14 | 30);
+    }
+
+    setGameState("result");
+  }, [currentStreak]);
+
+  // Handle collect from result
+  const handleCollect = useCallback(() => {
+    if (pendingMilestone) {
+      setGameState("milestone");
+    } else {
+      setGameState("idle");
+    }
+  }, [pendingMilestone]);
+
+  // Handle collect from milestone
+  const handleMilestoneCollect = useCallback(() => {
+    setPendingMilestone(null);
+    setGameState("idle");
+  }, []);
+
+  // Milestones status
+  const milestones = {
+    7: currentStreak >= 7,
+    14: currentStreak >= 14,
+    30: currentStreak >= 30,
+  };
 
   return (
     <div
@@ -47,36 +94,78 @@ export default function DailyFreePreview() {
           borderBottom: "1px solid rgba(212,168,67,0.2)",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center",
+          justifyContent: "space-between",
+          padding: "0 24px",
           fontFamily: "'Cinzel', serif",
-          fontSize: "18px",
-          color: "#D4A843",
-          letterSpacing: "2px",
         }}
       >
-        BONUS DIARIO
+        <div style={{ color: "#D4A843", fontSize: "14px" }}>← VOLTAR</div>
+        <div style={{ color: "#D4A843", fontSize: "18px", letterSpacing: "2px" }}>
+          BONUS DIARIO
+        </div>
+        <div style={{ color: "#00E676", fontSize: "14px", fontFamily: "monospace" }}>
+          Streak: {currentStreak}
+        </div>
       </div>
 
       {/* Conteudo do jogo */}
-      <div style={{ flex: 1, overflow: "hidden" }}>
+      <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
         <DailyFreeIdle
           calendarDays={mockCalendarDays}
-          currentStreak={12}
-          milestones={{ 7: true, 14: false, 30: false }}
-          onSpin={() => setShowResult(true)}
+          currentStreak={currentStreak}
+          milestones={milestones}
+          onSpin={handleSpin}
           lang="br"
         />
+
+        {/* Result overlay */}
+        {gameState === "result" && (
+          <DailyFreeResult
+            prize={prize}
+            streakDay={12}
+            onCollect={handleCollect}
+            lang="br"
+          />
+        )}
+
+        {/* Milestone overlay */}
+        {gameState === "milestone" && pendingMilestone && (
+          <DailyFreeMilestone
+            tier={pendingMilestone}
+            bonus={pendingMilestone === 7 ? 500 : pendingMilestone === 14 ? 1000 : 5000}
+            onCollect={handleMilestoneCollect}
+            lang="br"
+          />
+        )}
       </div>
 
-      {/* Overlay de resultado */}
-      {showResult && (
-        <DailyFreeResult
-          prize={prize}
-          streakDay={12}
-          onCollect={() => setShowResult(false)}
-          lang="br"
-        />
-      )}
+      {/* Flow info bar */}
+      <div
+        style={{
+          padding: "12px 24px",
+          background: "rgba(0,0,0,0.5)",
+          borderTop: "1px solid rgba(212,168,67,0.2)",
+          display: "flex",
+          justifyContent: "center",
+          gap: "16px",
+          fontFamily: "monospace",
+          fontSize: "12px",
+        }}
+      >
+        <span style={{ color: gameState === "idle" ? "#00E676" : "#666" }}>
+          1. IDLE
+        </span>
+        <span style={{ color: "#666" }}>→</span>
+        <span style={{ color: gameState === "result" ? "#00E676" : "#666" }}>
+          2. RESULT
+        </span>
+        <span style={{ color: "#666" }}>→</span>
+        <span style={{ color: gameState === "milestone" ? "#00E676" : "#666" }}>
+          3. MILESTONE
+        </span>
+        <span style={{ color: "#666" }}>→</span>
+        <span style={{ color: "#666" }}>4. VOLTAR AO IDLE</span>
+      </div>
     </div>
   );
 }
