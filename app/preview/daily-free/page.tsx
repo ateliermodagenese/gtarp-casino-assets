@@ -1,29 +1,38 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import DailyFreeIdle from "@/components/games/daily-free/DailyFreeIdle";
 import DailyFreeResult from "@/components/games/daily-free/DailyFreeResult";
 import DailyFreeMilestone from "@/components/games/daily-free/DailyFreeMilestone";
-
-const mockCalendarDays = Array.from({ length: 30 }, (_, i) => ({
-  day: i + 1,
-  status: (i < 11 ? "claimed" : i === 11 ? "available" : "future") as
-    | "future"
-    | "available"
-    | "claimed"
-    | "missed",
-}));
+import DailyFreeClaimed from "@/components/games/daily-free/DailyFreeClaimed";
 
 // Prizes on the wheel
 const PRIZES = [1000, 100, 50, 200, 200, 50, 100, 500];
 
-type GameState = "idle" | "result" | "milestone";
+type GameState = "idle" | "result" | "milestone" | "claimed";
 
 export default function DailyFreePreview() {
   const [gameState, setGameState] = useState<GameState>("idle");
   const [prize, setPrize] = useState(200);
   const [currentStreak, setCurrentStreak] = useState(6); // Start at 6 to trigger 7-day milestone
   const [pendingMilestone, setPendingMilestone] = useState<7 | 14 | 30 | null>(null);
+  const [hasSpunToday, setHasSpunToday] = useState(false);
+  const [timeLeft] = useState(85200000); // ~23:40:00
+
+  // Calendar days - dynamically updated based on current streak
+  const calendarDays = useMemo(() => {
+    const claimedCount = hasSpunToday ? currentStreak : currentStreak;
+    return Array.from({ length: 30 }, (_, i) => ({
+      day: i + 1,
+      status: (
+        i < claimedCount - 1 ? "claimed" :
+        i === claimedCount - 1 && hasSpunToday ? "claimed" :
+        i === claimedCount - 1 && !hasSpunToday ? "claimed" :
+        i === claimedCount ? (hasSpunToday ? "future" : "available") :
+        "future"
+      ) as "future" | "available" | "claimed" | "missed",
+    }));
+  }, [currentStreak, hasSpunToday]);
 
   // Handle spin
   const handleSpin = useCallback(() => {
@@ -33,6 +42,7 @@ export default function DailyFreePreview() {
     // Increment streak
     const newStreak = currentStreak + 1;
     setCurrentStreak(newStreak);
+    setHasSpunToday(true);
 
     // Check milestones
     if (newStreak === 7 || newStreak === 14 || newStreak === 30) {
@@ -47,14 +57,22 @@ export default function DailyFreePreview() {
     if (pendingMilestone) {
       setGameState("milestone");
     } else {
-      setGameState("idle");
+      setGameState("claimed");
     }
   }, [pendingMilestone]);
 
   // Handle collect from milestone
   const handleMilestoneCollect = useCallback(() => {
     setPendingMilestone(null);
+    setGameState("claimed");
+  }, []);
+
+  // Reset to idle (for testing)
+  const handleReset = useCallback(() => {
     setGameState("idle");
+    setHasSpunToday(false);
+    setCurrentStreak(6);
+    setPendingMilestone(null);
   }, []);
 
   // Milestones status
@@ -99,7 +117,9 @@ export default function DailyFreePreview() {
           fontFamily: "'Cinzel', serif",
         }}
       >
-        <div style={{ color: "#D4A843", fontSize: "14px" }}>← VOLTAR</div>
+        <div style={{ color: "#D4A843", fontSize: "14px", cursor: "pointer" }} onClick={handleReset}>
+          ← VOLTAR (Reset)
+        </div>
         <div style={{ color: "#D4A843", fontSize: "18px", letterSpacing: "2px" }}>
           BONUS DIARIO
         </div>
@@ -110,19 +130,33 @@ export default function DailyFreePreview() {
 
       {/* Conteudo do jogo */}
       <div style={{ flex: 1, overflow: "hidden", position: "relative" }}>
-        <DailyFreeIdle
-          calendarDays={mockCalendarDays}
-          currentStreak={currentStreak}
-          milestones={milestones}
-          onSpin={handleSpin}
-          lang="br"
-        />
+        {/* Show Idle or Claimed based on hasSpunToday */}
+        {gameState === "idle" && (
+          <DailyFreeIdle
+            calendarDays={calendarDays}
+            currentStreak={currentStreak}
+            milestones={milestones}
+            onSpin={handleSpin}
+            lang="br"
+          />
+        )}
+
+        {gameState === "claimed" && (
+          <DailyFreeClaimed
+            calendarDays={calendarDays}
+            currentStreak={currentStreak}
+            milestones={milestones}
+            timeLeft={timeLeft}
+            todayPrize={prize}
+            lang="br"
+          />
+        )}
 
         {/* Result overlay */}
         {gameState === "result" && (
           <DailyFreeResult
             prize={prize}
-            streakDay={12}
+            streakDay={currentStreak}
             onCollect={handleCollect}
             lang="br"
           />
@@ -164,7 +198,9 @@ export default function DailyFreePreview() {
           3. MILESTONE
         </span>
         <span style={{ color: "#666" }}>→</span>
-        <span style={{ color: "#666" }}>4. VOLTAR AO IDLE</span>
+        <span style={{ color: gameState === "claimed" ? "#00E676" : "#666" }}>
+          4. CLAIMED
+        </span>
       </div>
     </div>
   );
