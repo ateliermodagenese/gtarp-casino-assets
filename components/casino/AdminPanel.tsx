@@ -698,7 +698,7 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
         transition={{ type: "spring", stiffness: 400, damping: 28 }}
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: screen === "config" ? "clamp(400px, 52vw, 640px)" : "clamp(280px, 32vw, 380px)",
+          width: screen === "config" ? "clamp(min(95%, 320px), 52vw, 640px)" : "clamp(min(90%, 280px), 32vw, 380px)",
           maxHeight: "92%",
           borderRadius: 16,
           border: `1.5px solid ${COR.goldBorda}`,
@@ -773,7 +773,17 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
                   cursor: !password || loading ? "not-allowed" : "pointer",
                 }}
               >
-                {loading ? "..." : (isBR ? "ENTRAR" : "LOGIN")}
+                {loading ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <motion.svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <circle cx="12" cy="12" r="10" stroke={COR.goldClaro} strokeWidth="2.5" strokeDasharray="40 60" strokeLinecap="round" />
+                    </motion.svg>
+                  </span>
+                ) : (isBR ? "ENTRAR" : "LOGIN")}
               </motion.button>
             </motion.div>
           )}
@@ -810,7 +820,17 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
                   cursor: !newPass || loading ? "not-allowed" : "pointer",
                 }}
               >
-                {loading ? "..." : (isBR ? "CRIAR SENHA" : "CREATE PASSWORD")}
+                {loading ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <motion.svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <circle cx="12" cy="12" r="10" stroke={COR.goldClaro} strokeWidth="2.5" strokeDasharray="40 60" strokeLinecap="round" />
+                    </motion.svg>
+                  </span>
+                ) : (isBR ? "CRIAR SENHA" : "CREATE PASSWORD")}
               </motion.button>
             </motion.div>
           )}
@@ -931,7 +951,18 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
                   letterSpacing: "3px",
                 }}
               >
-                {loading ? "..." : (isBR
+                {loading ? (
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <motion.svg
+                      width="14" height="14" viewBox="0 0 24 24" fill="none"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      <circle cx="12" cy="12" r="10" stroke={COR.goldClaro} strokeWidth="2.5" strokeDasharray="40 60" strokeLinecap="round" />
+                    </motion.svg>
+                    {isBR ? "SALVANDO" : "SAVING"}
+                  </span>
+                ) : (isBR
                   ? `SALVAR${dirty ? ` (${Object.keys(edits).length})` : ""}`
                   : `SAVE${dirty ? ` (${Object.keys(edits).length})` : ""}`)}
               </motion.button>

@@ -283,20 +283,49 @@ export default function GameModal({
                 </div>
               )}
 
-              {/* ===== BODY — conteudo scrollavel ===== */}
+              {/* ===== BODY — conteudo scrollavel com minHeight fixa ===== */}
               <div
                 className="game-modal-body"
                 style={{
                   flex: 1,
+                  // minHeight: garante que o modal nao oscila ao trocar abas
+                  // (algumas abas tem pouco conteudo, outras muito - sem isso, o modal encolhe)
+                  minHeight: "clamp(280px, 38vh, 460px)",
+                  maxHeight: "clamp(360px, 60vh, 620px)",
                   overflowY: "auto",
                   padding: "clamp(12px, 1.5vw, 20px) clamp(14px, 1.8vw, 22px)",
-                  // Scrollbar dourada premium
+                  // Scrollbar dourada premium (Firefox)
                   scrollbarWidth: "thin",
-                  scrollbarColor: `rgba(212,168,67,0.3) transparent`,
+                  scrollbarColor: `${GOLD.primary} rgba(0,0,0,0.3)`,
                 }}
               >
                 {children}
               </div>
+
+              {/* Scrollbar custom WebKit (Chrome/Edge/Safari/CEF) — dourado luxuoso */}
+              <style>{`
+                .game-modal-body::-webkit-scrollbar {
+                  width: 8px;
+                }
+                .game-modal-body::-webkit-scrollbar-track {
+                  background: rgba(0,0,0,0.4);
+                  border-radius: 4px;
+                  margin: 4px 0;
+                }
+                .game-modal-body::-webkit-scrollbar-thumb {
+                  background: linear-gradient(180deg, ${GOLD.light} 0%, ${GOLD.primary} 50%, ${GOLD.dark} 100%);
+                  border-radius: 4px;
+                  border: 1px solid rgba(0,0,0,0.3);
+                  box-shadow: 0 0 6px ${GOLD.glow}, inset 0 1px 1px rgba(255,215,0,0.3);
+                }
+                .game-modal-body::-webkit-scrollbar-thumb:hover {
+                  background: linear-gradient(180deg, #FFEC60 0%, ${GOLD.light} 50%, ${GOLD.primary} 100%);
+                  box-shadow: 0 0 12px ${GOLD.glow};
+                }
+                .game-modal-body::-webkit-scrollbar-thumb:active {
+                  background: linear-gradient(180deg, ${GOLD.primary} 0%, ${GOLD.dark} 100%);
+                }
+              `}</style>
 
               {/* ===== FOOTER (opcional) ===== */}
               {footer && (

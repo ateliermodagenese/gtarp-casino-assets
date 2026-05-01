@@ -4,16 +4,27 @@
 const RESPONSE_EVENT = "casino:panel:response";
 
 // Helper DB: callback explicito wrappado em Promise (unico padrao que funciona no FiveM JS)
+// Timeout 5s: se oxmysql nao chamar callback (ex: erro silencioso), resolve null e loga
 function dbQuery(sql, params) {
   return new Promise((resolve) => {
+    const t = setTimeout(() => {
+      console.log(`[CASINO-DB] TIMEOUT query: ${sql.substring(0, 80)}`);
+      resolve(null);
+    }, 5000);
     exports.oxmysql.query(sql, params || [], (result) => {
+      clearTimeout(t);
       resolve(result);
     });
   });
 }
 function dbExecute(sql, params) {
   return new Promise((resolve) => {
+    const t = setTimeout(() => {
+      console.log(`[CASINO-DB] TIMEOUT execute: ${sql.substring(0, 80)}`);
+      resolve(null);
+    }, 5000);
     exports.oxmysql.execute(sql, params || [], (result) => {
+      clearTimeout(t);
       resolve(result);
     });
   });

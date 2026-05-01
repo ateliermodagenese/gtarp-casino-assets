@@ -51,5 +51,6 @@ INSERT INTO casino_config (chave, valor, descricao) VALUES
   ('daily_deposit_limit',  '200000', 'Limite diario de deposito'),
   ('daily_withdraw_limit', '100000', 'Limite diario de saque'),
   ('cooldown_seconds',     '3',      'Cooldown entre transacoes do mesmo jogador'),
-  ('casino_enabled',       '1',      'Cassino aberto (1) ou fechado (0)')
+  ('casino_enabled',       '1',      'Cassino aberto (1) ou fechado (0)'),
+  ('slot_enabled',         '1',      'Slot Machine habilitado (1) ou desabilitado (0)')
 ON DUPLICATE KEY UPDATE chave = chave;

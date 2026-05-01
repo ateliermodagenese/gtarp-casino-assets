@@ -21,7 +21,9 @@ files {
 client_scripts {
     'client/panel_client.lua',
     'client/slots_client.lua',
+    'client/blackjack_client.lua',
     'client/bicho_client.lua',
+    'client/daily_client.lua',
     'client/diagnostico.lua',
 }
 
@@ -30,7 +32,9 @@ server_scripts {
     'server/vrp_bridge.lua',
     'server/handlers/panel.js',
     'server/handlers/slots.js',
+    'server/handlers/blackjack.js',
     'server/handlers/bicho.js',
+    'server/handlers/daily.js',
     'server/handlers/diagnostico.js',
     'server/handlers/admin.js',
 }
