@@ -1,882 +1,1000 @@
 "use client";
 
-// DailyFreeGame — Orquestrador final do Daily-Free (#19)
-// F3.H - 30/04/2026
-//
-// Junta todos os 7 subcomponentes premium em uma tela so:
-//   - GameHeader (shared)         - topo com saldo + botoes acao
-//   - WheelComponent              - roleta luxo PNG AAA + SVG
-//   - CalendarGrid                - 7x4 com badges PNG nos milestones
-//   - StreakCounter               - footer triplo (sequencia + countdown + ajuda)
-//   - RewardOverlay               - modal "PARABENS!" pos-spin
-//   - ClaimedState                - estado "volte amanha" se ja claimou
-//   - HelpGameModal (shared)      - ajuda bilingue com sidebar
-//
-// Maquina de estados: loading → idle → spinning → result → claimed
-// Usa hook use-daily-api (auto-detecta FiveM vs browser → mock)
-//
-// Layout split 50/50: wheel a esquerda, calendar a direita (estilo Imagem 8/9)
-// Mobile responsivo: stack vertical em telas <= 900px
-
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  GameHeader,
-  HelpGameModal,
-  HistoryModal,
-  ProvablyFairModal,
-} from "@/components/shared";
-import type {
-  HistoryColumn,
-  PFData,
-} from "@/components/shared";
-import { useCasino } from "@/contexts/CasinoContext";
-import { useDailyAPI, type DailyState, type DailyClaimResult, type DailyHistoryItem } from "@/hooks/use-daily-api";
-import WheelComponent from "./WheelComponent";
-import CalendarGrid from "./CalendarGrid";
-import StreakCounter from "./StreakCounter";
+import { GameHeader } from "@/components/shared";
 import RewardOverlay from "./RewardOverlay";
-import ClaimedState from "./ClaimedState";
-import { DAILY_FREE_HELP_SECTIONS } from "./DailyFreeHelpSections";
+import MilestoneOverlay from "./MilestoneOverlay";
+import ClaimedOverlay from "./ClaimedOverlay";
+
+// ===========================================================================
+// DAILY-FREE (#19) — Blackout Casino GTARP
+// Bônus diário gratuito com roda da fortuna e streak de 28 dias
+// CSS inline, zero Tailwind, Framer Motion
+// ===========================================================================
+
+type Lang = "br" | "in";
+type GamePhase = "IDLE" | "SPINNING" | "RESULT" | "MILESTONE" | "CLAIMED";
 
 interface DailyFreeGameProps {
   onBack: () => void;
+  lang?: Lang;
+  // Mock data - será substituído por props reais do servidor
+  initialStreak?: number;
+  initialDay?: number;
+  canSpin?: boolean;
+  remainingMs?: number;
+  isVip?: boolean;
+  makeUpTokens?: number;
+  cycleResetDays?: number;
+  multiplier?: number;
+  currencyName?: string;
 }
 
-type GameScreen = "loading" | "idle" | "spinning" | "result" | "claimed";
+interface WheelSegment {
+  value: number;
+  tier: "common" | "good" | "big" | "mystery";
+  angle: number;
+}
 
-const GOLD = {
-  primary: "#D4A843",
-  light: "#FFD700",
-  dark: "#8B6914",
-  glow: "rgba(212,168,67,0.45)",
+interface CalendarDay {
+  day: number;
+  status: "claimed" | "available" | "future" | "missed";
+  isMilestone: boolean;
+}
+
+// ===========================================================================
+// CONSTANTES
+// ===========================================================================
+
+const ASSETS = {
+  // Roda
+  wheelBase: "/assets/games/daily-free/wheel-base.png",
+  wheelMoldura: "/assets/games/daily-free/wheel-moldura-anel.png",
+  wheelPointer: "/assets/games/daily-free/icons/wheel-pointer.png",
+  // Icones
+  iconFlame: "/assets/games/daily-free/icons/icon-flame.png",
+  iconTrophy: "/assets/games/daily-free/icons/icon-trophy.png",
+  iconLock: "/assets/games/daily-free/icons/icon-lock.png",
+  // Premios
+  coinSmall: "/assets/games/daily-free/prizes/coin-small.png",
+  coinMedium: "/assets/games/daily-free/prizes/coin-medium.png",
+  coinStack: "/assets/games/daily-free/prizes/coin-stack.png",
+  gemGreen: "/assets/games/daily-free/prizes/gem-green.png",
+  treasure: "/assets/games/daily-free/prizes/treasure.png",
+  // Decoracoes
+  brasaoVitoria: "/assets/games/daily-free/brasao-vitoria.png",
+  frameLuxo: "/assets/games/daily-free/frame-luxo-ornamental.png",
+  // Badges (funcao para pegar por dia e lang)
+  getBadge: (day: number, lang: Lang) => 
+    `/assets/games/daily-free/badges/badge-streak-${day}-${lang.toUpperCase()}.png`,
+  // Shared
+  bgCasino: "/assets/shared/ui/bg-casino.png",
+  iconGcoin: "/assets/shared/icons/icon-gcoin.png",
+  iconInfo: "/assets/shared/icons/icon-info.png",
+  iconCheck: "/assets/shared/icons/icon-check.png",
+  dividerOrnamental: "/assets/shared/ui/divider-ornamental-gold.png",
 };
 
-const EMERALD = {
-  primary: "#00C853",
-  light: "#00E676",
-  glow: "rgba(0,230,118,0.4)",
+// 12 segmentos + 1 mystery = 13 fatias (cada 27.69°)
+const WHEEL_SEGMENTS: WheelSegment[] = [
+  { value: 50, tier: "common", angle: 0 },
+  { value: 100, tier: "common", angle: 27.69 },
+  { value: 50, tier: "common", angle: 55.38 },
+  { value: 200, tier: "good", angle: 83.08 },
+  { value: 50, tier: "common", angle: 110.77 },
+  { value: 100, tier: "common", angle: 138.46 },
+  { value: 500, tier: "good", angle: 166.15 },
+  { value: 50, tier: "common", angle: 193.85 },
+  { value: 100, tier: "common", angle: 221.54 },
+  { value: 1000, tier: "big", angle: 249.23 },
+  { value: 50, tier: "common", angle: 276.92 },
+  { value: 100, tier: "common", angle: 304.62 },
+  { value: 0, tier: "mystery", angle: 332.31 }, // Mystery: 1000-5000
+];
+
+const MILESTONE_BONUSES: Record<number, number> = {
+  7: 500,
+  14: 1000,
+  21: 1500,
+  28: 2500,
 };
 
-export default function DailyFreeGame({ onBack }: DailyFreeGameProps) {
-  const { lang, saldo, setSaldo } = useCasino();
-  const api = useDailyAPI();
+const MILESTONE_COLORS: Record<number, { color: string; glow: string }> = {
+  7: { color: "#4B69FF", glow: "rgba(75,105,255,0.4)" },
+  14: { color: "#8847FF", glow: "rgba(136,71,255,0.4)" },
+  21: { color: "#C0C0FF", glow: "rgba(192,192,255,0.4)" },
+  28: { color: "#FFD700", glow: "rgba(255,215,0,0.5)" },
+};
 
-  // Estado da tela
-  const [screen, setScreen] = useState<GameScreen>("loading");
+const TEXTS = {
+  title: { br: "GIRO DIÁRIO", in: "DAILY SPIN" },
+  back: { br: "VOLTAR", in: "BACK" },
+  dayOf: { br: "DIA", in: "DAY" },
+  of28: { br: "DE 28", in: "OF 28" },
+  spin: { br: "GIRAR", in: "SPIN" },
+  freeSpinPerDay: { br: "1 GIRO GRÁTIS POR DIA", in: "1 FREE SPIN PER DAY" },
+  nextSpinIn: { br: "PRÓXIMO GIRO EM", in: "NEXT SPIN IN" },
+  streakCurrent: { br: "STREAK ATUAL", in: "CURRENT STREAK" },
+  days: { br: "DIAS", in: "DAYS" },
+  streakRewards: { br: "RECOMPENSAS DE STREAK", in: "STREAK REWARDS" },
+  recoveryTokens: { br: "TOKENS DE RECUPERAÇÃO", in: "RECOVERY TOKENS" },
+  monthlyReset: { br: "RESET MENSAL EM", in: "MONTHLY RESET IN" },
+  howItWorks: { br: "COMO FUNCIONA?", in: "HOW IT WORKS?" },
+  weekDays: {
+    br: ["DOM", "SEG", "TER", "QUA", "QUI", "SEX", "SÁB"],
+    in: ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"],
+  },
+};
 
-  // Estado do jogo (vem do server)
-  const [state, setState] = useState<DailyState | null>(null);
+// ===========================================================================
+// HELPERS
+// ===========================================================================
 
-  // Resultado do ultimo claim (passado pra RewardOverlay)
-  const [lastClaim, setLastClaim] = useState<DailyClaimResult | null>(null);
+function formatTime(ms: number): string {
+  if (ms <= 0) return "00:00:00";
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return [h, m, s].map(n => String(n).padStart(2, "0")).join(":");
+}
 
-  // Modais auxiliares
-  const [showHelp, setShowHelp] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [showPF, setShowPF] = useState(false);
+function generateCalendar(currentDay: number, streak: number): CalendarDay[] {
+  const days: CalendarDay[] = [];
+  for (let d = 1; d <= 28; d++) {
+    const isMilestone = [7, 14, 21, 28].includes(d);
+    let status: CalendarDay["status"];
+    
+    if (d < currentDay) {
+      // Dias passados: claimado se dentro do streak, senão perdido
+      status = d > currentDay - streak - 1 ? "claimed" : "missed";
+    } else if (d === currentDay) {
+      status = "available";
+    } else {
+      status = "future";
+    }
+    
+    days.push({ day: d, status, isMilestone });
+  }
+  return days;
+}
 
-  // Historico (carregado on-demand quando abrir modal)
-  const [historyData, setHistoryData] = useState<DailyHistoryItem[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
+// ===========================================================================
+// COMPONENTE PRINCIPAL
+// ===========================================================================
 
-  // Provably Fair: dados editaveis pelo usuario
-  const [pfClientSeed, setPfClientSeed] = useState<string>("");
-  const [pfRevealedSeed, setPfRevealedSeed] = useState<string>("");
-  const [pfIsValid, setPfIsValid] = useState<boolean | null>(null);
-  const [pfVerifying, setPfVerifying] = useState(false);
-  const [pfRotating, setPfRotating] = useState(false);
-  const [pfClientSeedChanged, setPfClientSeedChanged] = useState(false);
-  const [pfVerifyDetails, setPfVerifyDetails] = useState<{ committedHash: string; recalculatedHash: string; match: boolean } | null>(null);
-
-  // Erro (se houver)
-  const [error, setError] = useState<string | null>(null);
-
-  // Ref pra detectar se componente foi desmontado (evita setState apos unmount)
-  const mountedRef = useRef(true);
+export default function DailyFreeGame({
+  onBack,
+  lang = "br",
+  initialStreak = 11,
+  initialDay = 11,
+  canSpin = true,
+  remainingMs = 0,
+  isVip = false,
+  makeUpTokens = 2,
+  cycleResetDays = 16,
+  multiplier = 5,
+  currencyName = "GCoin",
+}: DailyFreeGameProps) {
+  // Estado
+  const [phase, setPhase] = useState<GamePhase>(canSpin ? "IDLE" : "CLAIMED");
+  const [streak, setStreak] = useState(initialStreak);
+  const [currentDay, setCurrentDay] = useState(initialDay);
+  const [wheelRotation, setWheelRotation] = useState(0);
+  const [winningSegment, setWinningSegment] = useState<WheelSegment | null>(null);
+  const [timer, setTimer] = useState(remainingMs);
+  const [isHoveringWheel, setIsHoveringWheel] = useState(false);
+  const [isHoveringSpin, setIsHoveringSpin] = useState(false);
+  
+  // Refs
+  const wheelRef = useRef<HTMLDivElement>(null);
+  const spinButtonRef = useRef<HTMLButtonElement>(null);
+  
+  // Calendario
+  const calendar = useMemo(() => generateCalendar(currentDay, streak), [currentDay, streak]);
+  
+  // Timer countdown
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  // ============================================================
-  // CARREGAR ESTADO INICIAL
-  // ============================================================
-  const loadState = useCallback(async () => {
-    try {
-      const newState = await api.getState();
-      if (!mountedRef.current) return;
-
-      if (!newState.ok) {
-        setError("server_error");
-        return;
-      }
-
-      setState(newState);
-      setSaldo(newState.saldo);
-
-      // Decide tela inicial:
-      // - Se NAO pode claim (cooldown ativo) → ClaimedState
-      // - Se pode claim → idle
-      if (newState.can_claim) {
-        setScreen("idle");
-      } else {
-        setScreen("claimed");
-      }
-    } catch (err) {
-      console.error("[DailyFree] loadState error:", err);
-      if (mountedRef.current) setError("network_error");
-    }
-  }, [api, setSaldo]);
-
-  useEffect(() => {
-    loadState();
-  }, [loadState]);
-
-  // ============================================================
-  // HANDLER: GIRAR (chama claim no server)
-  // ============================================================
-  const handleSpin = useCallback(async () => {
-    if (!state || !state.can_claim || screen !== "idle") return;
-
-    setScreen("spinning");
-    try {
-      const result = await api.claim();
-      if (!mountedRef.current) return;
-
-      if (!result.ok) {
-        setError("claim_failed");
-        setScreen("idle");
-        return;
-      }
-
-      // Salva resultado pro RewardOverlay
-      setLastClaim(result);
-
-      // A wheel vai animar girando ate o segment_id retornado pelo server.
-      // Quando o spin terminar, WheelComponent dispara onSpinComplete →
-      // a gente troca pra screen "result" mostrando o RewardOverlay.
-      // (Estamos em "spinning" enquanto a animacao roda)
-    } catch (err) {
-      console.error("[DailyFree] claim error:", err);
-      if (mountedRef.current) {
-        setError("network_error");
-        setScreen("idle");
-      }
-    }
-  }, [api, state, screen]);
-
-  // ============================================================
-  // HANDLER: WheelComponent terminou de girar → mostra RewardOverlay
-  // ============================================================
-  const handleSpinComplete = useCallback(() => {
-    if (lastClaim) {
-      setScreen("result");
-    }
-  }, [lastClaim]);
-
-  // ============================================================
-  // HANDLER: jogador coletou o premio do RewardOverlay
-  // ============================================================
-  const handleCollect = useCallback(async () => {
-    setLastClaim(null);
-    // Re-fetch state pra atualizar saldo, streak, cooldown
-    await loadState();
-  }, [loadState]);
-
-  // ============================================================
-  // HANDLER: cooldown expirou → re-fetch (ja pode girar de novo)
-  // ============================================================
-  const handleCooldownExpired = useCallback(() => {
-    loadState();
-  }, [loadState]);
-
-  // ============================================================
-  // FIX 30/04/2026: Handlers Help/PF/Historico (BC: "padrao tem
-  // sistema de ajuda, tem provably fair, tem historico")
-  // ============================================================
-
-  // Inicializa client seed quando state carrega
-  useEffect(() => {
-    if (state?.wheel?.client_seed && !pfClientSeed) {
-      setPfClientSeed(state.wheel.client_seed);
-    }
-  }, [state?.wheel?.client_seed, pfClientSeed]);
-
-  // Carrega historico ao abrir modal (lazy)
-  const openHistory = useCallback(async () => {
-    setShowHistory(true);
-    if (historyData.length === 0 && !historyLoading) {
-      setHistoryLoading(true);
-      try {
-        const res = await api.getHistory(50, 0);
-        if (mountedRef.current && res?.ok && res.items) {
-          setHistoryData(res.items);
+    if (phase !== "CLAIMED" || timer <= 0) return;
+    const interval = setInterval(() => {
+      setTimer(prev => {
+        if (prev <= 1000) {
+          setPhase("IDLE");
+          return 0;
         }
-      } catch (err) {
-        console.error("[DailyFree] history fetch error:", err);
-      } finally {
-        if (mountedRef.current) setHistoryLoading(false);
-      }
+        return prev - 1000;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [phase, timer]);
+
+  // Handler de giro
+  const handleSpin = useCallback(() => {
+    if (phase !== "IDLE") return;
+    
+    setPhase("SPINNING");
+    
+    // Sortear segmento baseado em probabilidades
+    const rand = Math.random() * 100;
+    let selectedSegment: WheelSegment;
+    
+    if (rand < 64) {
+      // Common (64%)
+      const commons = WHEEL_SEGMENTS.filter(s => s.tier === "common");
+      selectedSegment = commons[Math.floor(Math.random() * commons.length)];
+    } else if (rand < 88) {
+      // Good (24%)
+      const goods = WHEEL_SEGMENTS.filter(s => s.tier === "good");
+      selectedSegment = goods[Math.floor(Math.random() * goods.length)];
+    } else if (rand < 96) {
+      // Big (8%)
+      selectedSegment = WHEEL_SEGMENTS.find(s => s.tier === "big")!;
+    } else {
+      // Mystery (4%)
+      selectedSegment = WHEEL_SEGMENTS.find(s => s.tier === "mystery")!;
     }
-  }, [api, historyData.length, historyLoading]);
+    
+    setWinningSegment(selectedSegment);
+    
+    // Calcular angulo final (5-8 voltas + angulo do segmento)
+    const spins = 5 + Math.random() * 3;
+    const targetAngle = spins * 360 + (360 - selectedSegment.angle);
+    
+    setWheelRotation(prev => prev + targetAngle);
+    
+    // Timeout para resultado
+    setTimeout(() => {
+      const newStreak = streak + 1;
+      const newDay = currentDay;
+      
+      // Verificar milestone
+      if ([7, 14, 21, 28].includes(newStreak)) {
+        setStreak(newStreak);
+        setPhase("MILESTONE");
+      } else {
+        setStreak(newStreak);
+        setPhase("RESULT");
+      }
+    }, 5000);
+  }, [phase, streak, currentDay]);
 
-  const closeHistory = useCallback(() => setShowHistory(false), []);
-  const closePF = useCallback(() => setShowPF(false), []);
-
-  // PF: usuario edita client seed
-  const handleClientSeedChange = useCallback((seed: string) => {
-    setPfClientSeed(seed);
-    setPfClientSeedChanged(true);
+  // Handler de coletar premio
+  const handleCollect = useCallback(() => {
+    setPhase("CLAIMED");
+    setTimer(24 * 60 * 60 * 1000); // 24h
+    // Aqui seria a chamada real ao servidor
   }, []);
 
-  // PF: rotacionar seed (chama backend)
-  const handlePfRotate = useCallback(async () => {
-    if (pfRotating) return;
-    setPfRotating(true);
-    try {
-      const res = await api.rotateSeed(pfClientSeed);
-      if (mountedRef.current && res?.ok) {
-        // Reset state - server gera novo server_seed_hash
-        setPfClientSeedChanged(false);
-        // Recarrega state pra pegar novo hash
-        await loadState();
-      }
-    } catch (err) {
-      console.error("[DailyFree] rotate seed error:", err);
-    } finally {
-      if (mountedRef.current) setPfRotating(false);
-    }
-  }, [api, pfClientSeed, pfRotating, loadState]);
+  // ===========================================================================
+  // STYLES
+  // ===========================================================================
 
-  // PF: verificar resultado do ultimo claim
-  const handlePfVerify = useCallback(async () => {
-    if (pfVerifying || !lastClaim?.claim_id) return;
-    setPfVerifying(true);
-    setPfIsValid(null);
-    try {
-      const res = await api.verifyClaim(lastClaim.claim_id);
-      if (mountedRef.current && res?.ok) {
-        const verified = res.verified === true;
-        setPfIsValid(verified);
-        setPfRevealedSeed(res.server_seed || "");
-        setPfVerifyDetails({
-          committedHash: res.server_seed_hash || "",
-          recalculatedHash: res.recalculated_hash || "",
-          match: verified,
-        });
-      } else {
-        setPfIsValid(false);
-      }
-    } catch (err) {
-      console.error("[DailyFree] verify error:", err);
-      if (mountedRef.current) setPfIsValid(false);
-    } finally {
-      if (mountedRef.current) setPfVerifying(false);
-    }
-  }, [api, lastClaim?.claim_id, pfVerifying]);
+  const styles = useMemo(() => ({
+    container: {
+      position: "absolute" as const,
+      inset: "6px",
+      zIndex: 60,
+      borderRadius: "12px",
+      overflow: "hidden",
+      backgroundColor: "#080604",
+      backgroundImage: `url('${ASSETS.bgCasino}'), radial-gradient(ellipse 80% 50% at 50% 0%, rgba(212,168,67,0.03) 0%, transparent 70%)`,
+      backgroundSize: "cover, 100% 100%",
+      border: "1.5px solid rgba(212,168,67,0.35)",
+      boxShadow: "inset 0 0 80px rgba(0,0,0,0.9), 0 0 30px rgba(212,168,67,0.06)",
+      display: "flex",
+      flexDirection: "column" as const,
+      fontFamily: "'Inter', sans-serif",
+    },
+    mainContent: {
+      display: "flex",
+      flex: 1,
+      padding: "clamp(8px, 1vw, 16px)",
+      gap: "clamp(12px, 2vw, 24px)",
+      overflow: "hidden",
+    },
+    // Lado esquerdo: Roda
+    leftPanel: {
+      flex: "0 0 55%",
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "clamp(8px, 1vw, 16px)",
+      position: "relative" as const,
+    },
+    // Lado direito: Calendario
+    rightPanel: {
+      flex: "0 0 45%",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "clamp(8px, 1vw, 12px)",
+      overflow: "hidden",
+    },
+    // Streak counter
+    streakCounter: {
+      position: "absolute" as const,
+      top: "clamp(8px, 1vw, 16px)",
+      left: "clamp(8px, 1vw, 16px)",
+      display: "flex",
+      alignItems: "center",
+      gap: "clamp(6px, 0.8vw, 10px)",
+      padding: "clamp(8px, 1vw, 12px) clamp(12px, 1.5vw, 18px)",
+      background: "rgba(0,0,0,0.85)",
+      border: "1.5px solid rgba(212,168,67,0.4)",
+      borderRadius: "12px",
+      boxShadow: "0 0 20px rgba(0,0,0,0.6), inset 0 0 15px rgba(0,0,0,0.5)",
+    },
+    streakFlame: {
+      width: "clamp(28px, 3vw, 40px)",
+      height: "clamp(28px, 3vw, 40px)",
+      objectFit: "contain" as const,
+      filter: "drop-shadow(0 0 8px rgba(255,100,0,0.6))",
+    },
+    streakText: {
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+    },
+    streakLabel: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 600,
+      fontSize: "clamp(7px, 0.8vw, 10px)",
+      color: "rgba(255,255,255,0.5)",
+      letterSpacing: "1px",
+      textTransform: "uppercase" as const,
+    },
+    streakValue: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 900,
+      fontSize: "clamp(24px, 3vw, 36px)",
+      color: "#FFD700",
+      lineHeight: 1,
+      textShadow: "0 0 12px rgba(255,215,0,0.6)",
+    },
+    streakDays: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 600,
+      fontSize: "clamp(8px, 0.9vw, 11px)",
+      color: "rgba(255,255,255,0.6)",
+      letterSpacing: "2px",
+      textTransform: "uppercase" as const,
+    },
+    // Roda container
+    wheelContainer: {
+      position: "relative" as const,
+      width: "clamp(280px, 38vw, 480px)",
+      height: "clamp(280px, 38vw, 480px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    },
+    wheelBase: {
+      position: "absolute" as const,
+      width: "100%",
+      height: "100%",
+      borderRadius: "50%",
+      transition: phase === "SPINNING" ? "none" : "transform 0.3s ease-out",
+    },
+    wheelMoldura: {
+      position: "absolute" as const,
+      width: "100%",
+      height: "100%",
+      pointerEvents: "none" as const,
+      filter: "drop-shadow(0 0 30px rgba(255,215,0,0.4))",
+      zIndex: 2,
+    },
+    wheelPointer: {
+      position: "absolute" as const,
+      top: "-4%",
+      left: "50%",
+      transform: "translateX(-50%)",
+      width: "clamp(40px, 5vw, 60px)",
+      height: "clamp(50px, 6vw, 75px)",
+      objectFit: "contain" as const,
+      zIndex: 3,
+      filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.8))",
+    },
+    // Botao GIRAR
+    spinButtonContainer: {
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+      gap: "clamp(4px, 0.5vw, 8px)",
+    },
+    spinButton: {
+      position: "relative" as const,
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 900,
+      fontSize: "clamp(18px, 2.2vw, 28px)",
+      letterSpacing: "4px",
+      textTransform: "uppercase" as const,
+      color: "#FFFFFF",
+      padding: "clamp(14px, 1.8vw, 22px) clamp(50px, 6vw, 80px)",
+      borderRadius: "12px",
+      border: "2px solid rgba(0,230,118,0.5)",
+      background: "linear-gradient(180deg, #00E676 0%, #00C853 50%, #004D25 100%)",
+      boxShadow: `
+        0 0 30px rgba(0,230,118,0.5),
+        0 8px 24px rgba(0,0,0,0.5),
+        inset 0 2px 0 rgba(255,255,255,0.25),
+        inset 0 -2px 4px rgba(0,0,0,0.3)
+      `,
+      cursor: "pointer",
+      overflow: "hidden",
+    },
+    spinButtonDisabled: {
+      background: "linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 50%, #1a1a1a 100%)",
+      border: "2px solid rgba(100,100,100,0.3)",
+      boxShadow: "inset 0 0 20px rgba(0,0,0,0.5)",
+      cursor: "not-allowed",
+      color: "rgba(255,255,255,0.3)",
+    },
+    spinSubtext: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 500,
+      fontSize: "clamp(9px, 1vw, 12px)",
+      color: "rgba(255,255,255,0.5)",
+      letterSpacing: "2px",
+      textTransform: "uppercase" as const,
+    },
+    // Info e timer
+    bottomInfo: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      width: "100%",
+      maxWidth: "clamp(280px, 38vw, 480px)",
+      marginTop: "clamp(4px, 0.5vw, 8px)",
+    },
+    howItWorksBtn: {
+      display: "flex",
+      alignItems: "center",
+      gap: "clamp(4px, 0.5vw, 8px)",
+      padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 16px)",
+      background: "rgba(0,0,0,0.6)",
+      border: "1px solid rgba(212,168,67,0.3)",
+      borderRadius: "8px",
+      cursor: "pointer",
+      transition: "all 0.2s ease",
+    },
+    howItWorksIcon: {
+      width: "clamp(14px, 1.6vw, 20px)",
+      height: "clamp(14px, 1.6vw, 20px)",
+      opacity: 0.7,
+    },
+    howItWorksText: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 600,
+      fontSize: "clamp(8px, 0.9vw, 11px)",
+      color: "rgba(255,255,255,0.6)",
+      letterSpacing: "1px",
+    },
+    timerBox: {
+      display: "flex",
+      alignItems: "center",
+      gap: "clamp(6px, 0.8vw, 10px)",
+      padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 16px)",
+      background: "rgba(0,0,0,0.6)",
+      border: "1px solid rgba(212,168,67,0.3)",
+      borderRadius: "8px",
+    },
+    timerLabel: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 500,
+      fontSize: "clamp(8px, 0.9vw, 11px)",
+      color: "rgba(255,255,255,0.5)",
+      letterSpacing: "1px",
+    },
+    timerValue: {
+      fontFamily: "'JetBrains Mono', monospace",
+      fontWeight: 700,
+      fontSize: "clamp(12px, 1.4vw, 18px)",
+      color: "#FFD700",
+      textShadow: "0 0 8px rgba(255,215,0,0.5)",
+    },
+    // Titulo do calendario
+    calendarTitle: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "clamp(8px, 1vw, 14px)",
+    },
+    calendarTitleText: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 900,
+      fontSize: "clamp(18px, 2.2vw, 28px)",
+      color: "#D4A843",
+      letterSpacing: "3px",
+      textShadow: "0 0 12px rgba(212,168,67,0.5)",
+    },
+    calendarDivider: {
+      width: "clamp(40px, 5vw, 70px)",
+      height: "2px",
+      background: "linear-gradient(90deg, transparent, rgba(212,168,67,0.6), transparent)",
+    },
+    // Header da semana
+    weekHeader: {
+      display: "grid",
+      gridTemplateColumns: "repeat(7, 1fr)",
+      gap: "clamp(2px, 0.3vw, 4px)",
+      marginTop: "clamp(4px, 0.5vw, 8px)",
+    },
+    weekDay: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 600,
+      fontSize: "clamp(8px, 0.9vw, 11px)",
+      color: "rgba(255,255,255,0.4)",
+      textAlign: "center" as const,
+      letterSpacing: "1px",
+    },
+    // Grid do calendario
+    calendarGrid: {
+      display: "grid",
+      gridTemplateColumns: "repeat(7, 1fr)",
+      gridTemplateRows: "repeat(4, 1fr)",
+      gap: "clamp(3px, 0.4vw, 6px)",
+      flex: 1,
+      minHeight: 0,
+    },
+    calendarDay: {
+      position: "relative" as const,
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+      justifyContent: "center",
+      aspectRatio: "1",
+      background: "rgba(0,0,0,0.5)",
+      border: "1px solid rgba(212,168,67,0.2)",
+      borderRadius: "clamp(4px, 0.5vw, 8px)",
+      transition: "all 0.2s ease",
+    },
+    calendarDayAvailable: {
+      border: "2px solid #FFD700",
+      boxShadow: "0 0 20px rgba(255,215,0,0.4), inset 0 0 15px rgba(255,215,0,0.1)",
+      animation: "pulseGlow 2s ease-in-out infinite",
+    },
+    calendarDayClaimed: {
+      background: "rgba(0,230,118,0.1)",
+      border: "1px solid rgba(0,230,118,0.3)",
+    },
+    calendarDayMissed: {
+      background: "rgba(255,0,0,0.05)",
+      border: "1px solid rgba(255,0,0,0.2)",
+      opacity: 0.5,
+    },
+    calendarDayFuture: {
+      opacity: 0.4,
+    },
+    calendarDayNumber: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 700,
+      fontSize: "clamp(11px, 1.3vw, 16px)",
+      color: "rgba(255,255,255,0.8)",
+    },
+    calendarDayIcon: {
+      position: "absolute" as const,
+      width: "clamp(14px, 1.6vw, 20px)",
+      height: "clamp(14px, 1.6vw, 20px)",
+      objectFit: "contain" as const,
+    },
+    // Divisor de recompensas
+    rewardsDivider: {
+      display: "flex",
+      alignItems: "center",
+      gap: "clamp(8px, 1vw, 14px)",
+      margin: "clamp(4px, 0.5vw, 8px) 0",
+    },
+    rewardsDividerLine: {
+      flex: 1,
+      height: "1px",
+      background: "linear-gradient(90deg, transparent, rgba(212,168,67,0.4), transparent)",
+    },
+    rewardsDividerText: {
+      fontFamily: "'Cinzel', serif",
+      fontWeight: 600,
+      fontSize: "clamp(9px, 1vw, 12px)",
+      color: "rgba(212,168,67,0.7)",
+      letterSpacing: "2px",
+      textTransform: "uppercase" as const,
+      whiteSpace: "nowrap" as const,
+    },
+    // Milestones
+    milestonesRow: {
+      display: "flex",
+      gap: "clamp(6px, 0.8vw, 10px)",
+      justifyContent: "center",
+    },
+    milestoneCard: {
+      display: "flex",
+      flexDirection: "column" as const,
+      alignItems: "center",
+      gap: "clamp(4px, 0.5vw, 8px)",
+      padding: "clamp(8px, 1vw, 14px)",
+      background: "rgba(0,0,0,0.6)",
+      borderRadius: "clamp(8px, 1vw, 12px)",
+      transition: "all 0.3s ease",
+      flex: 1,
+      maxWidth: "clamp(70px, 9vw, 100px)",
+    },
+    milestoneBadge: {
+      width: "clamp(50px, 6vw, 80px)",
+      height: "clamp(50px, 6vw, 80px)",
+      objectFit: "contain" as const,
+    },
+    milestoneValue: {
+      display: "flex",
+      alignItems: "center",
+      gap: "clamp(2px, 0.3vw, 4px)",
+    },
+    milestoneAmount: {
+      fontFamily: "'JetBrains Mono', monospace",
+      fontWeight: 700,
+      fontSize: "clamp(11px, 1.3vw, 16px)",
+      color: "#FFD700",
+    },
+    milestoneCoin: {
+      width: "clamp(12px, 1.4vw, 18px)",
+      height: "clamp(12px, 1.4vw, 18px)",
+    },
+    milestoneLabel: {
+      fontFamily: "'Inter', sans-serif",
+      fontSize: "clamp(8px, 0.9vw, 11px)",
+      color: "rgba(255,255,255,0.5)",
+    },
+    // Footer info
+    footerInfo: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 16px)",
+      background: "rgba(0,0,0,0.5)",
+      borderTop: "1px solid rgba(212,168,67,0.15)",
+      borderRadius: "0 0 10px 10px",
+    },
+    footerItem: {
+      display: "flex",
+      alignItems: "center",
+      gap: "clamp(4px, 0.5vw, 8px)",
+    },
+    footerIcon: {
+      width: "clamp(14px, 1.6vw, 20px)",
+      height: "clamp(14px, 1.6vw, 20px)",
+      opacity: 0.6,
+    },
+    footerText: {
+      fontFamily: "'Inter', sans-serif",
+      fontSize: "clamp(9px, 1vw, 12px)",
+      color: "rgba(255,255,255,0.5)",
+    },
+    footerValue: {
+      fontFamily: "'JetBrains Mono', monospace",
+      fontWeight: 600,
+      fontSize: "clamp(10px, 1.1vw, 14px)",
+      color: "#00E676",
+    },
+  }), [phase]);
 
-  // PF: dados consolidados pro modal
-  const pfData: PFData = useMemo(() => ({
-    serverSeedHash: state?.wheel?.server_seed_hash || "",
-    clientSeed: pfClientSeed,
-    nonce: state?.wheel?.next_nonce ?? 0,
-    serverSeed: pfRevealedSeed,
-    isValid: pfIsValid,
-  }), [state?.wheel?.server_seed_hash, pfClientSeed, state?.wheel?.next_nonce, pfRevealedSeed, pfIsValid]);
-
-  // Historico: colunas formatadas (Cinzel + ouro/verde)
-  const historyColumns: HistoryColumn<DailyHistoryItem>[] = useMemo(() => [
-    {
-      id: "created_at",
-      label: lang === "br" ? "DATA" : "DATE",
-      render: (row) => {
-        const d = new Date(row.created_at);
-        const dia = String(d.getDate()).padStart(2, "0");
-        const mes = String(d.getMonth() + 1).padStart(2, "0");
-        const hh = String(d.getHours()).padStart(2, "0");
-        const mm = String(d.getMinutes()).padStart(2, "0");
-        return `${dia}/${mes} ${hh}:${mm}`;
-      },
-      width: "20%",
-    },
-    {
-      id: "wheel_segment_tier",
-      label: lang === "br" ? "PREMIO" : "PRIZE",
-      render: (row) => {
-        const tierLabels: Record<string, string> = {
-          common: lang === "br" ? "Comum" : "Common",
-          good: lang === "br" ? "Bom" : "Good",
-          big: lang === "br" ? "Grande" : "Big",
-          mystery: lang === "br" ? "Misterio" : "Mystery",
-        };
-        return tierLabels[row.wheel_segment_tier] || row.wheel_segment_tier;
-      },
-      width: "20%",
-    },
-    {
-      id: "streak_at_claim",
-      label: lang === "br" ? "DIA" : "DAY",
-      render: (row) => `D${row.cycle_day_at_claim}`,
-      width: "15%",
-      align: "center",
-    },
-    {
-      id: "total_awarded",
-      label: lang === "br" ? "VALOR" : "AMOUNT",
-      render: (row) => (
-        <span style={{
-          color: "#00E676",
-          fontFamily: "'JetBrains Mono', monospace",
-          fontWeight: 700,
-        }}>
-          +{row.total_awarded.toLocaleString()} GC
-        </span>
-      ),
-      width: "25%",
-      align: "right",
-    },
-    {
-      id: "milestone_bonus",
-      label: lang === "br" ? "BONUS" : "BONUS",
-      render: (row) => row.milestone_day
-        ? `D${row.milestone_day}: +${row.milestone_bonus}`
-        : "—",
-      width: "20%",
-      align: "right",
-    },
-  ], [lang]);
-
-  // ============================================================
+  // ===========================================================================
   // RENDER
-  // ============================================================
+  // ===========================================================================
 
-  // Tela LOADING (carregando estado inicial)
-  if (screen === "loading" || !state) {
+  const renderCalendarDay = (day: CalendarDay) => {
+    const baseStyle = { ...styles.calendarDay };
+    
+    if (day.status === "available") Object.assign(baseStyle, styles.calendarDayAvailable);
+    else if (day.status === "claimed") Object.assign(baseStyle, styles.calendarDayClaimed);
+    else if (day.status === "missed") Object.assign(baseStyle, styles.calendarDayMissed);
+    else if (day.status === "future") Object.assign(baseStyle, styles.calendarDayFuture);
+    
+    // Cor especial para milestones
+    if (day.isMilestone) {
+      const mc = MILESTONE_COLORS[day.day as 7 | 14 | 21 | 28];
+      if (day.status === "claimed") {
+        baseStyle.border = `2px solid ${mc.color}`;
+        baseStyle.boxShadow = `0 0 15px ${mc.glow}`;
+      }
+    }
+
     return (
-      <Container>
-        <GameHeader
-          onBack={onBack}
-          title={lang === "br" ? "DAILY-FREE" : "DAILY-FREE"}
-          balance={saldo}
-          lang={lang}
-        />
-        <div
-          style={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            color: GOLD.primary,
-            fontFamily: "'Cinzel', serif",
-            fontSize: "clamp(14px, 1.4vw, 18px)",
-            letterSpacing: "2px",
-          }}
-        >
-          {error
-            ? lang === "br"
-              ? "Erro ao carregar..."
-              : "Loading error..."
-            : lang === "br"
-              ? "Carregando..."
-              : "Loading..."}
-        </div>
-      </Container>
-    );
-  }
-
-  // Tela CLAIMED (volte amanha)
-  if (screen === "claimed") {
-    return (
-      <Container>
-        <GameHeader
-          onBack={onBack}
-          title={lang === "br" ? "DAILY-FREE" : "DAILY-FREE"}
-          balance={saldo}
-          lang={lang}
-          actions={[
-            {
-              id: "help",
-              icon: "/assets/shared/icons/icon-info.png",
-              tooltip: lang === "br" ? "Como funciona" : "How it works",
-              onClick: () => setShowHelp(true),
-            },
-            {
-              id: "history",
-              icon: "/assets/shared/icons/icon-history.png",
-              tooltip: lang === "br" ? "Historico" : "History",
-              onClick: openHistory,
-            },
-            {
-              id: "pf",
-              icon: "/assets/shared/icons/icon-provably-fair.png",
-              tooltip: "Provably Fair",
-              onClick: () => setShowPF(true),
-            },
-          ]}
-        />
-        <ClaimedState
-          lastClaimAt={state.streak.last_claim_at!}
-          cooldownHours={state.config.cooldown_hours}
-          currentStreak={state.streak.current}
-          lang={lang}
-          onCooldownExpired={handleCooldownExpired}
-        />
-        <HelpGameModal
-          open={showHelp}
-          onClose={() => setShowHelp(false)}
-          lang={lang}
-          gameTitle={lang === "br" ? "Bonus Diario" : "Daily Free"}
-          gameLogo="/assets/games/daily-free/logo-mini.png"
-          sections={DAILY_FREE_HELP_SECTIONS}
-          escId="daily-free-help"
-        />
-        {/* Modais Historico e PF tambem disponiveis no estado claimed */}
-        <HistoryModal
-          open={showHistory}
-          onClose={closeHistory}
-          title={lang === "br" ? "HISTORICO DAILY-FREE" : "DAILY-FREE HISTORY"}
-          lang={lang === "en" ? "in" : lang as "br"}
-          columns={historyColumns}
-          data={historyData}
-          loading={historyLoading}
-          emptyMessage={lang === "br" ? "Nenhum giro ainda" : "No spins yet"}
-        />
-        <ProvablyFairModal
-          open={showPF}
-          onClose={closePF}
-          lang={lang === "en" ? "in" : lang as "br"}
-          pfData={pfData}
-          onClientSeedChange={handleClientSeedChange}
-          onVerify={handlePfVerify}
-          onRotateSeed={handlePfRotate}
-          verifying={pfVerifying}
-          rotating={pfRotating}
-          clientSeedChanged={pfClientSeedChanged}
-          verifyDetails={pfVerifyDetails}
-          unverifiedCount={state?.wheel?.next_nonce ?? 0}
-        />
-      </Container>
-    );
-  }
-
-  // ====== Tela IDLE / SPINNING / RESULT (compartilham mesmo layout) ======
-
-  // Para o WheelComponent: passa o segment_id vencedor APENAS quando estivermos em spinning
-  // (em idle e result, passa null pra wheel ficar parada)
-  const winningSegmentId =
-    screen === "spinning" && lastClaim ? lastClaim.result.segment_id : null;
-
-  return (
-    <Container>
-      <GameHeader
-        onBack={onBack}
-        title={lang === "br" ? "DAILY-FREE" : "DAILY-FREE"}
-        balance={saldo}
-        lang={lang}
-        actions={[
-          {
-            id: "help",
-            icon: "/assets/shared/icons/icon-info.png",
-            tooltip: lang === "br" ? "Como funciona" : "How it works",
-            onClick: () => setShowHelp(true),
-          },
-          {
-            id: "history",
-            icon: "/assets/shared/icons/icon-history.png",
-            tooltip: lang === "br" ? "Historico" : "History",
-            onClick: openHistory,
-          },
-          {
-            id: "pf",
-            icon: "/assets/shared/icons/icon-provably-fair.png",
-            tooltip: "Provably Fair",
-            onClick: () => setShowPF(true),
-          },
-        ]}
-      />
-
-      {/* ============== AREA DE JOGO ============== */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: "clamp(14px, 2vw, 24px)",
-          padding: "clamp(14px, 2vw, 28px)",
-          overflow: "auto",
-        }}
+      <motion.div
+        key={day.day}
+        style={baseStyle}
+        whileHover={day.status === "available" ? { scale: 1.05 } : undefined}
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: day.status === "future" ? 0.4 : 1, scale: 1 }}
+        transition={{ delay: day.day * 0.02 }}
       >
-        {/* SPLIT 50/50: WHEEL | CALENDAR (responsivo via CSS grid) */}
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: "clamp(14px, 2vw, 24px)",
-            // Mobile responsivo: < 900px vira coluna unica
-            // (controlado por CSS no Container abaixo)
-          }}
-          className="daily-free-split"
-        >
-          {/* COLUNA 1: WHEEL + BOTAO GIRAR */}
-          <div
+        <span style={styles.calendarDayNumber}>{day.day}</span>
+        
+        {/* Icone baseado no status */}
+        {day.status === "claimed" && (
+          <img
+            src={ASSETS.iconCheck}
+            alt=""
             style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: "clamp(14px, 2vw, 24px)",
-              padding: "clamp(14px, 2vw, 24px)",
-              background:
-                "linear-gradient(180deg, rgba(15,12,8,0.6) 0%, rgba(8,7,6,0.8) 100%)",
-              // FIX 30/04/2026: borda dupla com halo (DOUBLE OUTLINE pattern
-              // §1.3 do GUIA-VISUAL). border principal + outline com offset
-              // = sensacao de "anel duplo" / convite de casamento luxury.
-              // Funciona em CEF 103 (CSS classico).
-              border: `1.5px solid ${GOLD.primary}`,
-              outline: `1px solid rgba(212,168,67,0.25)`,
-              outlineOffset: "4px",
-              borderRadius: "14px",
-              boxShadow: [
-                // Glow expansivo dourado (multi-camada — regra #13 efeitos AAA)
-                `0 0 25px rgba(212,168,67,0.20)`,
-                `0 0 50px rgba(212,168,67,0.10)`,
-                // Inset shimmer topo (metalizado)
-                "inset 0 1px 2px rgba(255,215,0,0.12)",
-                // Drop shadow profundo
-                "0 8px 24px rgba(0,0,0,0.5)",
-                // Vinheta interna (atmosfera)
-                "inset 0 0 60px rgba(0,0,0,0.4)",
-              ].join(", "),
-              minHeight: "clamp(360px, 42vw, 520px)",
+              ...styles.calendarDayIcon,
+              bottom: "4px",
+              filter: "brightness(0) saturate(100%) invert(72%) sepia(59%) saturate(4476%) hue-rotate(88deg) brightness(107%) contrast(108%)",
             }}
-          >
-            <WheelComponent
-              segments={state.wheel.segments}
-              winningSegmentId={winningSegmentId}
-              onSpinComplete={handleSpinComplete}
-              size="clamp(340px, 40vw, 540px)"
-            />
-
-            {/* BOTAO GIRAR (so visivel em idle) */}
-            {/*
-              FIX 30/04/2026: Botao GIRAR redesenhado seguindo padroes premium
-              dos guias visuais (GUIA-VISUAL-EFEITOS-PREMIUM.md + X0-DESIGN-
-              PATTERNS-AVANCADOS.md). Mood "Casino Luxury":
-              - Cinzel weight 800 + letter-spacing 0.18em (tracking CAPS premium)
-              - Borda dupla com halo dourado (DOUBLE OUTLINE pattern §1.3)
-              - Background gradient esmeralda dramatico com bevel ::before topo
-              - Shine sweep no hover (pattern §2.3) — listra de luz atravessa
-              - Spring bounce no tap (microinteracao §10.2) com scale 0.92
-              - Glow pulsante GPU-friendly (so transform + opacity = 60fps)
-              - 2 camadas: container externo (halo dourado) + botao interno (CTA)
-            */}
-            <AnimatePresence mode="wait">
-              {screen === "idle" && (
-                <motion.div
-                  key="spin-button-wrapper"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
-                  transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                  style={{
-                    position: "relative",
-                    display: "inline-block",
-                    // Halo dourado externo (DOUBLE OUTLINE pattern §1.3)
-                    padding: "3px",
-                    borderRadius: "14px",
-                    background: `linear-gradient(135deg, ${GOLD.dark} 0%, ${GOLD.primary} 50%, ${GOLD.dark} 100%)`,
-                    boxShadow: [
-                      // Halo expansivo dourado pulsante (multi-camada)
-                      `0 0 28px ${GOLD.glow}`,
-                      `0 0 56px rgba(212,168,67,0.18)`,
-                      // Drop shadow profundo
-                      `0 6px 18px rgba(0,0,0,0.55)`,
-                      // Inset shimmer dourado topo (efeito metalizado)
-                      `inset 0 1.5px 0 rgba(255,215,0,0.4)`,
-                    ].join(", "),
-                    // Glow pulsante via animation keyframe (GPU - so transform/box-shadow)
-                    animation: "spinBtnHalo 2.4s ease-in-out infinite",
-                  }}
-                >
-                  <motion.button
-                    onClick={handleSpin}
-                    // Hover: shine sweep + scale sutil
-                    whileHover="hover"
-                    // Tap: spring bounce dramatico (§10.2)
-                    whileTap={{ scale: 0.92 }}
-                    transition={{
-                      type: "spring",
-                      stiffness: 400,
-                      damping: 15,
-                    }}
-                    variants={{
-                      hover: { scale: 1.04 },
-                    }}
-                    style={{
-                      // Reset
-                      border: "none",
-                      outline: "none",
-                      cursor: "pointer",
-                      // Layout
-                      padding: "clamp(14px, 1.9vw, 22px) clamp(56px, 8vw, 96px)",
-                      borderRadius: "11px",
-                      minWidth: "clamp(200px, 24vw, 300px)",
-                      // Background gradient esmeralda dramatico (3 stops)
-                      background: `linear-gradient(180deg,
-                        ${EMERALD.light} 0%,
-                        ${EMERALD.primary} 45%,
-                        #006A2A 100%)`,
-                      // Tipografia premium
-                      fontFamily: "'Cinzel', 'Cinzel Decorative', serif",
-                      fontWeight: 800,
-                      fontSize: "clamp(17px, 2vw, 24px)",
-                      color: "#FFFFFF",
-                      // Tracking premium em CAPS (+0.18em do guia)
-                      textTransform: "uppercase",
-                      letterSpacing: "0.18em",
-                      textShadow: [
-                        "0 2px 4px rgba(0,0,0,0.6)",
-                        "0 0 14px rgba(0,230,118,0.5)",
-                        "0 0 24px rgba(0,230,118,0.3)",
-                      ].join(", "),
-                      // Box shadow inset = bevel (luz topo + sombra base)
-                      boxShadow: [
-                        // Inset bevel topo (clarear topo do botao = ilusao 3D)
-                        "inset 0 1px 0 rgba(255,255,255,0.35)",
-                        "inset 0 2px 8px rgba(255,255,255,0.18)",
-                        // Inset bevel base (escurecer = profundidade)
-                        "inset 0 -2px 6px rgba(0,0,0,0.4)",
-                        // Glow esmeralda externa
-                        `0 0 18px ${EMERALD.glow}`,
-                        `0 0 0 1px rgba(0,230,118,0.5)`,
-                      ].join(", "),
-                      // Shine sweep usa overflow hidden + ::after pseudo
-                      position: "relative",
-                      overflow: "hidden",
-                      // Indica que vai animar transform (GPU)
-                      willChange: "transform",
-                      // Z para texto ficar acima do shine sweep
-                      zIndex: 1,
-                    }}
-                  >
-                    {/* Shine sweep — listra de luz atravessa no hover */}
-                    <span
-                      aria-hidden
-                      style={{
-                        position: "absolute",
-                        top: 0,
-                        left: "-150%",
-                        width: "60%",
-                        height: "100%",
-                        background:
-                          "linear-gradient(110deg, transparent 0%, rgba(255,255,255,0.0) 30%, rgba(255,255,255,0.42) 50%, rgba(255,255,255,0.0) 70%, transparent 100%)",
-                        transform: "skewX(-22deg)",
-                        transition:
-                          "left 0.85s cubic-bezier(0.22, 1, 0.36, 1)",
-                        pointerEvents: "none",
-                        zIndex: -1,
-                      }}
-                      className="spin-btn-shine"
-                    />
-                    {lang === "br" ? "GIRAR" : "SPIN"}
-                  </motion.button>
-                </motion.div>
-              )}
-
-              {screen === "spinning" && (
-                <motion.div
-                  key="spinning-text"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  style={{
-                    fontFamily: "'Cinzel', serif",
-                    fontWeight: 700,
-                    fontSize: "clamp(13px, 1.4vw, 17px)",
-                    color: GOLD.light,
-                    letterSpacing: "3px",
-                    textShadow: `0 0 12px ${GOLD.glow}`,
-                    minHeight: "clamp(54px, 5.4vw, 72px)",
-                    display: "flex",
-                    alignItems: "center",
-                  }}
-                >
-                  {lang === "br" ? "GIRANDO..." : "SPINNING..."}
-                </motion.div>
-              )}
-
-              {screen === "result" && (
-                <motion.div
-                  key="result-text"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  style={{
-                    minHeight: "clamp(54px, 5.4vw, 72px)",
-                  }}
-                />
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* COLUNA 2: CALENDAR */}
-          <CalendarGrid
-            currentDay={state.streak.cycle_day}
-            cycleDays={state.config.cycle_days}
-            lang={lang}
           />
-        </div>
+        )}
+        {day.status === "future" && (
+          <img
+            src={ASSETS.iconLock}
+            alt=""
+            style={{
+              ...styles.calendarDayIcon,
+              bottom: "4px",
+              opacity: 0.4,
+            }}
+          />
+        )}
+      </motion.div>
+    );
+  };
 
-        {/* FOOTER TRIPLO: SEQUENCIA + PROXIMO GIRO + COMO FUNCIONA */}
-        <StreakCounter
-          currentStreak={state.streak.current}
-          lastClaimAt={state.streak.last_claim_at}
-          cooldownHours={state.config.cooldown_hours}
-          lang={lang}
-          onHelpClick={() => setShowHelp(true)}
-        />
-      </div>
+  const renderMilestoneCard = (day: 7 | 14 | 21 | 28) => {
+    const mc = MILESTONE_COLORS[day];
+    const bonus = MILESTONE_BONUSES[day];
+    const isAchieved = streak >= day;
+    const isNext = streak < day && streak >= day - 7;
 
-      {/* ============== OVERLAY DE PREMIO (sobre tudo) ============== */}
-      {lastClaim && (
-        <RewardOverlay
-          open={screen === "result"}
-          onCollect={handleCollect}
-          reward={{
-            wheelAmount: lastClaim.result.wheel_amount,
-            segmentTier: lastClaim.result.segment_tier,
-            mysteryAmount: lastClaim.result.mystery_amount,
-            milestoneDay: lastClaim.result.milestone_day,
-            milestoneBonus: lastClaim.result.milestone_bonus,
-            totalAwarded: lastClaim.result.total_awarded,
-            isAnchor: lastClaim.result.is_anchor,
+    return (
+      <motion.div
+        key={day}
+        style={{
+          ...styles.milestoneCard,
+          border: `1.5px solid ${isAchieved ? mc.color : "rgba(212,168,67,0.2)"}`,
+          boxShadow: isAchieved ? `0 0 20px ${mc.glow}` : "none",
+          opacity: isAchieved ? 1 : isNext ? 0.7 : 0.4,
+        }}
+        whileHover={{ scale: 1.05, boxShadow: `0 0 25px ${mc.glow}` }}
+      >
+        <img
+          src={ASSETS.getBadge(day, lang)}
+          alt={`${day} days`}
+          style={{
+            ...styles.milestoneBadge,
+            filter: isAchieved ? `drop-shadow(0 0 10px ${mc.glow})` : "grayscale(0.8) brightness(0.6)",
           }}
-          currentDay={state.streak.cycle_day}
-          cycleDays={state.config.cycle_days}
-          lang={lang}
         />
-      )}
+        <div style={styles.milestoneValue}>
+          <span style={styles.milestoneAmount}>{bonus}</span>
+          <img src={ASSETS.iconGcoin} alt="" style={styles.milestoneCoin} />
+        </div>
+        <span style={styles.milestoneLabel}>{currencyName}</span>
+        {isAchieved && (
+          <img
+            src={ASSETS.iconCheck}
+            alt=""
+            style={{
+              width: "clamp(12px, 1.4vw, 18px)",
+              height: "clamp(12px, 1.4vw, 18px)",
+              filter: "brightness(0) saturate(100%) invert(72%) sepia(59%) saturate(4476%) hue-rotate(88deg) brightness(107%) contrast(108%)",
+            }}
+          />
+        )}
+      </motion.div>
+    );
+  };
 
-      {/* ============== MODAL DE AJUDA ============== */}
-      <HelpGameModal
-        open={showHelp}
-        onClose={() => setShowHelp(false)}
-        lang={lang}
-        gameTitle={lang === "br" ? "Bonus Diario" : "Daily Free"}
-        gameLogo="/assets/games/daily-free/logo-mini.png"
-        sections={DAILY_FREE_HELP_SECTIONS}
-        escId="daily-free-help"
-      />
-
-      {/* ============== MODAL HISTORICO (shared) ============== */}
-      <HistoryModal
-        open={showHistory}
-        onClose={closeHistory}
-        title={lang === "br" ? "HISTORICO DAILY-FREE" : "DAILY-FREE HISTORY"}
-        lang={lang === "en" ? "in" : lang as "br"}
-        columns={historyColumns}
-        data={historyData}
-        loading={historyLoading}
-        emptyMessage={lang === "br" ? "Nenhum giro ainda" : "No spins yet"}
-      />
-
-      {/* ============== MODAL PROVABLY FAIR (shared) ============== */}
-      <ProvablyFairModal
-        open={showPF}
-        onClose={closePF}
-        lang={lang === "en" ? "in" : lang as "br"}
-        pfData={pfData}
-        onClientSeedChange={handleClientSeedChange}
-        onVerify={handlePfVerify}
-        onRotateSeed={handlePfRotate}
-        verifying={pfVerifying}
-        rotating={pfRotating}
-        clientSeedChanged={pfClientSeedChanged}
-        verifyDetails={pfVerifyDetails}
-        unverifiedCount={state?.wheel?.next_nonce ?? 0}
-      />
-    </Container>
-  );
-}
-
-// ============================================================
-// CONTAINER (wrapper visual da tela inteira)
-// ============================================================
-function Container({ children }: { children: React.ReactNode }) {
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      style={{
-        position: "absolute",
-        inset: "6px",
-        zIndex: 60,
-        borderRadius: "12px",
-        overflow: "hidden",
-        backgroundColor: "#080604",
-        // Background com bg-casino + glow ambiental
-        backgroundImage: `
-          url("/assets/shared/ui/bg-casino.png"),
-          radial-gradient(ellipse 80% 50% at 50% 0%, rgba(212,168,67,0.08) 0%, transparent 60%),
-          radial-gradient(ellipse 60% 40% at 50% 100%, rgba(0,0,0,0.5) 0%, transparent 70%)
-        `,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        border: "1.5px solid rgba(212,168,67,0.35)",
-        boxShadow: `
-          inset 0 0 60px rgba(0,0,0,0.4),
-          0 0 25px rgba(212,168,67,0.2),
-          0 0 50px rgba(212,168,67,0.1)
-        `,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {children}
-
-      {/* CSS responsivo + animacoes do botao GIRAR */}
+    <div style={styles.container}>
+      {/* CSS Keyframes */}
       <style>{`
-        @media (max-width: 900px) {
-          .daily-free-split {
-            grid-template-columns: 1fr !important;
-          }
+        @keyframes pulseGlow {
+          0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.4), inset 0 0 15px rgba(255,215,0,0.1); }
+          50% { box-shadow: 0 0 35px rgba(255,215,0,0.6), inset 0 0 25px rgba(255,215,0,0.2); }
         }
-
-        /*
-          FIX 30/04/2026: animacoes do botao GIRAR luxo.
-          Halo dourado pulsante (anima box-shadow + transform = GPU).
-          Shine sweep no hover (anima left = soh em pseudo-elemento, ok).
-        */
-        @keyframes spinBtnHalo {
-          0%, 100% {
-            box-shadow:
-              0 0 28px rgba(212,168,67,0.4),
-              0 0 56px rgba(212,168,67,0.18),
-              0 6px 18px rgba(0,0,0,0.55),
-              inset 0 1.5px 0 rgba(255,215,0,0.4);
-          }
-          50% {
-            box-shadow:
-              0 0 42px rgba(212,168,67,0.6),
-              0 0 80px rgba(212,168,67,0.28),
-              0 6px 22px rgba(0,0,0,0.6),
-              inset 0 1.5px 0 rgba(255,215,0,0.55);
-          }
+        @keyframes shinePass {
+          0% { transform: translateX(-100%) skewX(-15deg); }
+          100% { transform: translateX(200%) skewX(-15deg); }
         }
-        button:hover .spin-btn-shine {
-          left: 200% !important;
-        }
-        @media (prefers-reduced-motion: reduce) {
-          [style*="spinBtnHalo"] {
-            animation: none !important;
-          }
+        @keyframes pointerBounce {
+          0%, 100% { transform: translateX(-50%) translateY(0); }
+          50% { transform: translateX(-50%) translateY(4px); }
         }
       `}</style>
-    </motion.div>
+
+      {/* Header */}
+      <GameHeader
+        title={TEXTS.title[lang]}
+        onBack={onBack}
+        lang={lang}
+      />
+
+      {/* Conteudo principal */}
+      <div style={styles.mainContent}>
+        {/* Painel esquerdo: Roda */}
+        <div style={styles.leftPanel}>
+          {/* Streak Counter */}
+          <motion.div
+            style={styles.streakCounter}
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <img src={ASSETS.iconFlame} alt="" style={styles.streakFlame} />
+            <div style={styles.streakText}>
+              <span style={styles.streakLabel}>{TEXTS.streakCurrent[lang]}</span>
+              <span style={styles.streakValue}>{streak}</span>
+              <span style={styles.streakDays}>{TEXTS.days[lang]}</span>
+            </div>
+          </motion.div>
+
+          {/* Roda da Fortuna */}
+          <div
+            style={styles.wheelContainer}
+            ref={wheelRef}
+            onMouseEnter={() => setIsHoveringWheel(true)}
+            onMouseLeave={() => setIsHoveringWheel(false)}
+          >
+            {/* Ponteiro */}
+            <motion.img
+              src={ASSETS.wheelPointer}
+              alt=""
+              style={styles.wheelPointer}
+              animate={phase === "SPINNING" ? { y: [0, 4, 0] } : {}}
+              transition={{ duration: 0.15, repeat: phase === "SPINNING" ? Infinity : 0 }}
+            />
+
+            {/* Roda base (gira) */}
+            <motion.img
+              src={ASSETS.wheelBase}
+              alt="Wheel"
+              style={styles.wheelBase}
+              animate={{ rotate: wheelRotation }}
+              transition={{
+                duration: phase === "SPINNING" ? 5 : 0.3,
+                ease: phase === "SPINNING" ? [0.2, 0.8, 0.3, 1] : "easeOut",
+              }}
+            />
+
+            {/* Moldura (estatica) */}
+            <img
+              src={ASSETS.wheelMoldura}
+              alt=""
+              style={styles.wheelMoldura}
+            />
+          </div>
+
+          {/* Botao GIRAR */}
+          <div style={styles.spinButtonContainer}>
+            <motion.button
+              ref={spinButtonRef}
+              style={{
+                ...styles.spinButton,
+                ...(phase !== "IDLE" ? styles.spinButtonDisabled : {}),
+              }}
+              onClick={handleSpin}
+              disabled={phase !== "IDLE"}
+              whileHover={phase === "IDLE" ? { scale: 1.03 } : undefined}
+              whileTap={phase === "IDLE" ? { scale: 0.97 } : undefined}
+              onMouseEnter={() => setIsHoveringSpin(true)}
+              onMouseLeave={() => setIsHoveringSpin(false)}
+            >
+              {/* Shine effect */}
+              {phase === "IDLE" && (
+                <motion.div
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "50%",
+                    height: "100%",
+                    background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
+                    pointerEvents: "none",
+                  }}
+                  animate={{ x: ["0%", "300%"] }}
+                  transition={{ duration: 2.5, repeat: Infinity, repeatDelay: 1 }}
+                />
+              )}
+              {TEXTS.spin[lang]}
+            </motion.button>
+            <span style={styles.spinSubtext}>{TEXTS.freeSpinPerDay[lang]}</span>
+          </div>
+
+          {/* Info e Timer */}
+          <div style={styles.bottomInfo}>
+            <button style={styles.howItWorksBtn}>
+              <img src={ASSETS.iconInfo} alt="" style={styles.howItWorksIcon} />
+              <span style={styles.howItWorksText}>{TEXTS.howItWorks[lang]}</span>
+            </button>
+
+            {phase === "CLAIMED" && timer > 0 && (
+              <div style={styles.timerBox}>
+                <span style={styles.timerLabel}>{TEXTS.nextSpinIn[lang]}</span>
+                <span style={styles.timerValue}>{formatTime(timer)}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Painel direito: Calendario */}
+        <div style={styles.rightPanel}>
+          {/* Titulo */}
+          <div style={styles.calendarTitle}>
+            <div style={styles.calendarDivider} />
+            <span style={styles.calendarTitleText}>
+              {TEXTS.dayOf[lang]} {currentDay} {TEXTS.of28[lang]}
+            </span>
+            <div style={styles.calendarDivider} />
+          </div>
+
+          {/* Header da semana */}
+          <div style={styles.weekHeader}>
+            {TEXTS.weekDays[lang].map((day, i) => (
+              <span key={i} style={styles.weekDay}>{day}</span>
+            ))}
+          </div>
+
+          {/* Grid do calendario */}
+          <div style={styles.calendarGrid}>
+            {calendar.map(renderCalendarDay)}
+          </div>
+
+          {/* Divisor de recompensas */}
+          <div style={styles.rewardsDivider}>
+            <div style={styles.rewardsDividerLine} />
+            <span style={styles.rewardsDividerText}>{TEXTS.streakRewards[lang]}</span>
+            <div style={styles.rewardsDividerLine} />
+          </div>
+
+          {/* Milestones */}
+          <div style={styles.milestonesRow}>
+            {([7, 14, 21, 28] as const).map(renderMilestoneCard)}
+          </div>
+
+          {/* Footer info */}
+          <div style={styles.footerInfo}>
+            <div style={styles.footerItem}>
+              <img src={ASSETS.iconTrophy} alt="" style={styles.footerIcon} />
+              <span style={styles.footerText}>{TEXTS.recoveryTokens[lang]}:</span>
+              <span style={styles.footerValue}>{makeUpTokens}/3</span>
+            </div>
+            <div style={styles.footerItem}>
+              <span style={styles.footerText}>{TEXTS.monthlyReset[lang]}:</span>
+              <span style={{ ...styles.footerValue, color: "#00E676" }}>{cycleResetDays} {TEXTS.days[lang]}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MODAIS - Serao renderizados via AnimatePresence */}
+      <AnimatePresence>
+        {phase === "RESULT" && winningSegment && (
+          <RewardOverlay
+            key="reward"
+            segment={winningSegment}
+            multiplier={multiplier}
+            currencyName={currencyName}
+            currentDay={currentDay}
+            lang={lang}
+            onCollect={handleCollect}
+          />
+        )}
+        {phase === "MILESTONE" && (
+          <MilestoneOverlay
+            key="milestone"
+            day={(streak) as 7 | 14 | 21 | 28}
+            multiplier={multiplier}
+            currencyName={currencyName}
+            lang={lang}
+            onCollect={handleCollect}
+          />
+        )}
+        {phase === "CLAIMED" && timer > 0 && (
+          <ClaimedOverlay
+            key="claimed"
+            remainingMs={timer}
+            lang={lang}
+            onExpired={() => setPhase("IDLE")}
+          />
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
+
+
