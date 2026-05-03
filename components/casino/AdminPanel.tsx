@@ -3,9 +3,10 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import LuxuryTooltip from "@/components/shared/LuxuryTooltip";
+import { ECONOMY_TOOLTIPS } from "@/components/shared/economy/EconomyTooltipText";
 
 type Screen = "login" | "setup" | "config";
-type TabId = "currency" | "finance" | "texts" | "control" | "security";
+type TabId = "economy" | "currency" | "finance" | "texts" | "control" | "security";
 
 interface ConfigRow {
   chave: string;
@@ -53,14 +54,19 @@ function mockAdminHandler(evento: string, payload: any): any {
     return { sucesso: false, mensagem: "Senha deve ter no minimo 6 caracteres" };
   }
 
-  if (ep === "getConfig") {
+  if (ep === "getConfig" || ep === "getConfigWithEconomy") {
+    // Injeta defaults de economy se nao existem
+    if (!mockAdmin.configs["global_multiplier"]) mockAdmin.configs["global_multiplier"] = "1.00";
+    if (!mockAdmin.configs["currency_name"]) mockAdmin.configs["currency_name"] = "GCoin";
+    if (!mockAdmin.configs["currency_symbol"]) mockAdmin.configs["currency_symbol"] = "GC";
+    if (!mockAdmin.configs["currency_icon"]) mockAdmin.configs["currency_icon"] = "/assets/shared/icons/icon-gcoin.png";
     return {
       sucesso: true,
       configs: Object.entries(mockAdmin.configs).map(([chave, valor]) => ({ chave, valor, descricao: "" })),
     };
   }
 
-  if (ep === "setConfig") {
+  if (ep === "setConfig" || ep === "setConfigWithEconomy") {
     const changes = payload?.changes || {};
     Object.assign(mockAdmin.configs, changes);
     return { sucesso: true, mensagem: `${Object.keys(changes).length} configuracoes salvas`, count: Object.keys(changes).length };
@@ -118,6 +124,7 @@ const COR = {
 // TABS DO ADMIN
 // ═══════════════════════════════════════════════
 const ADMIN_TABS: { id: TabId; labelBR: string; labelEN: string; icon: string }[] = [
+  { id: "economy", labelBR: "ECONOMIA", labelEN: "ECONOMY", icon: "⚖" },
   { id: "currency", labelBR: "MOEDA", labelEN: "CURRENCY", icon: "💰" },
   { id: "finance", labelBR: "FINANC.", labelEN: "FINANCE", icon: "📊" },
   { id: "texts", labelBR: "TEXTOS", labelEN: "TEXTS", icon: "📝" },
@@ -286,7 +293,7 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
   const [chgNewPass, setChgNewPass] = useState("");
   const [chgConfirm, setChgConfirm] = useState("");
 
-  const [activeTab, setActiveTab] = useState<TabId>("currency");
+  const [activeTab, setActiveTab] = useState<TabId>("economy");
 
   const dirty = Object.keys(edits).length > 0;
 
@@ -363,7 +370,7 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
   const loadConfigs = useCallback(async (tkn: string) => {
     try {
       const res = await fetchAdmin<{ sucesso: boolean; configs?: ConfigRow[] }>(
-        "casino:admin:getConfig",
+        "casino:admin:getConfigWithEconomy",
         { token: tkn }
       );
       if (res.sucesso && res.configs) {
@@ -381,7 +388,7 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
     setLoading(true);
     try {
       const res = await fetchAdmin<{ sucesso: boolean; mensagem?: string; count?: number }>(
-        "casino:admin:setConfig",
+        "casino:admin:setConfigWithEconomy",
         { token, changes: edits }
       );
       if (res.sucesso) {
@@ -442,6 +449,10 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
 
   const tabHasEdits = (tabId: TabId): boolean => {
     if (tabId === "security") return false;
+    if (tabId === "economy") {
+      const economyKeys = ["global_multiplier", "currency_name", "currency_symbol", "currency_icon"];
+      return economyKeys.some((k) => k in edits);
+    }
     const section = CONFIG_SECTIONS.find((s) => s.id === tabId);
     return section ? section.fields.some((f) => f.key in edits) : false;
   };
@@ -570,6 +581,381 @@ export default function AdminPanel({ onClose, lang }: AdminPanelProps) {
 
   // ── TAB CONTENT: secoes de config ──
   const renderTabContent = () => {
+    // ── ECONOMIA ──
+    if (activeTab === "economy") {
+      const tt = isBR ? ECONOMY_TOOLTIPS.br : ECONOMY_TOOLTIPS.en;
+      const multVal = getVal("global_multiplier") || "1.0";
+      const currName = getVal("currency_name") || "GCoin";
+      const currSymbol = getVal("currency_symbol") || "GC";
+      const currIcon = getVal("currency_icon") || "/assets/shared/icons/icon-gcoin.png";
+
+      const presets = [
+        { label: isBR ? "Artesanal" : "Artisan", mult: "0.08", desc: isBR ? "~800/h" : "~800/h" },
+        { label: isBR ? "Medio" : "Medium", mult: "1.00", desc: isBR ? "~10k/h" : "~10k/h" },
+        { label: isBR ? "Alto" : "High", mult: "5.00", desc: isBR ? "~50k/h" : "~50k/h" },
+      ];
+
+      const refTable = [
+        { tipo: isBR ? "Artesanal" : "Artisan", salary: "100-800", mult: "0.01-0.08" },
+        { tipo: "Low-eco", salary: "1.000-3.000", mult: "0.10-0.30" },
+        { tipo: isBR ? "Medio" : "Medium", salary: "5.000-15.000", mult: "0.50-1.50" },
+        { tipo: isBR ? "Alto (Cidade Alta)" : "High (Cidade Alta)", salary: "30.000-80.000", mult: "3.00-8.00" },
+        { tipo: "Hyper-eco", salary: "100.000+", mult: "10.00+" },
+      ];
+
+      return (
+        <motion.div
+          key="economy"
+          variants={staggerContainer}
+          initial="hidden"
+          animate="show"
+          style={{ display: "flex", flexDirection: "column", gap: "clamp(10px, 1.2vw, 16px)" }}
+        >
+          {/* Multiplicador Global */}
+          <motion.div variants={staggerItem}>
+            <LuxuryTooltip text={tt.multiplier_global.text} position="right" delay={300}>
+              <span style={labelStyle}>
+                {tt.multiplier_global.title}
+                {isEdited("global_multiplier") && <span style={{ color: COR.sucesso, fontSize: 8, marginLeft: 4 }}>●</span>}
+                <span style={{ color: COR.goldTexto, fontSize: 9, cursor: "help" }}> ?</span>
+              </span>
+            </LuxuryTooltip>
+            <input
+              type="number"
+              step="0.01"
+              min="0.01"
+              max="100"
+              value={multVal}
+              onChange={(e) => setVal("global_multiplier", e.target.value)}
+              style={inputBaseStyle}
+              onFocus={applyFocusGlow}
+              onBlur={removeFocusGlow}
+            />
+          </motion.div>
+
+          {/* Presets rapidos */}
+          <motion.div variants={staggerItem}>
+            <span style={{ ...labelStyle, marginBottom: 6 }}>
+              {isBR ? "Presets rapidos" : "Quick presets"}
+            </span>
+            <div style={{ display: "flex", gap: 6 }}>
+              {presets.map((p) => (
+                <motion.button
+                  key={p.mult}
+                  onClick={() => setVal("global_multiplier", p.mult)}
+                  whileHover={{ borderColor: COR.goldBordaAtiva, boxShadow: `0 0 12px ${COR.goldGlow}` }}
+                  whileTap={{ scale: 0.95 }}
+                  title={`${p.label}: ${p.mult}x (${isBR ? "salario" : "salary"} ${p.desc})`}
+                  style={{
+                    flex: 1, padding: "clamp(6px, 0.7vw, 10px)",
+                    borderRadius: 8, cursor: "pointer",
+                    background: multVal === p.mult
+                      ? "linear-gradient(135deg, rgba(212,168,67,0.25), rgba(212,168,67,0.1))"
+                      : "rgba(255,255,255,0.02)",
+                    border: `1px solid ${multVal === p.mult ? COR.goldBordaAtiva : COR.secaoBorda}`,
+                    color: multVal === p.mult ? COR.goldClaro : COR.goldTexto,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    fontSize: "clamp(9px, 0.9vw, 11px)",
+                    fontWeight: 600,
+                    display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                    transition: "all 0.2s",
+                  }}
+                >
+                  <span>{p.mult}x</span>
+                  <span style={{ fontSize: "clamp(7px, 0.7vw, 9px)", opacity: 0.5 }}>{p.label}</span>
+                </motion.button>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Tabela de referencia */}
+          <motion.div variants={staggerItem}>
+            <LuxuryTooltip text={tt.reference_table.text} position="right" delay={300}>
+              <span style={labelStyle}>
+                {tt.reference_table.title}
+                <span style={{ color: COR.goldTexto, fontSize: 9, cursor: "help" }}> ?</span>
+              </span>
+            </LuxuryTooltip>
+            <div style={{
+              borderRadius: 8, overflow: "hidden",
+              border: `1px solid ${COR.secaoBorda}`,
+              fontSize: "clamp(8px, 0.8vw, 10px)",
+              fontFamily: "'JetBrains Mono', monospace",
+            }}>
+              <div style={{
+                display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+                background: "rgba(212,168,67,0.06)",
+                padding: "6px 8px", gap: 4,
+                color: COR.goldPrimario, fontWeight: 700, fontSize: "clamp(7px, 0.7vw, 9px)",
+                letterSpacing: "0.5px",
+              }}>
+                <span>{isBR ? "TIPO" : "TYPE"}</span>
+                <span>{isBR ? "SALARIO/H" : "SALARY/H"}</span>
+                <span>MULT.</span>
+              </div>
+              {refTable.map((row, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
+                    padding: "5px 8px", gap: 4,
+                    background: i % 2 === 0 ? "transparent" : "rgba(255,255,255,0.015)",
+                    color: "rgba(255,255,255,0.5)",
+                  }}
+                >
+                  <span>{row.tipo}</span>
+                  <span>{row.salary}</span>
+                  <span style={{ color: COR.goldClaro }}>{row.mult}</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Separador */}
+          <motion.div variants={staggerItem} style={{
+            height: 1,
+            background: `linear-gradient(90deg, transparent, ${COR.secaoBorda}, transparent)`,
+          }} />
+
+          {/* Configuracao da Moeda */}
+          <motion.div variants={staggerItem}>
+            <LuxuryTooltip text={tt.currency_config.text} position="right" delay={300}>
+              <span style={{ ...labelStyle, fontSize: "clamp(10px, 1vw, 12px)", color: COR.goldPrimario, marginBottom: 8 }}>
+                {tt.currency_config.title}
+                <span style={{ color: COR.goldTexto, fontSize: 9, cursor: "help" }}> ?</span>
+              </span>
+            </LuxuryTooltip>
+          </motion.div>
+
+          {/* Nome da moeda */}
+          <motion.div variants={staggerItem}>
+            <span style={labelStyle}>
+              {isBR ? "nome da moeda" : "currency name"}
+              {isEdited("currency_name") && <span style={{ color: COR.sucesso, fontSize: 8, marginLeft: 4 }}>●</span>}
+            </span>
+            <input
+              value={currName}
+              onChange={(e) => setVal("currency_name", e.target.value)}
+              style={inputBaseStyle}
+              onFocus={applyFocusGlow}
+              onBlur={removeFocusGlow}
+            />
+          </motion.div>
+
+          {/* Simbolo */}
+          <motion.div variants={staggerItem}>
+            <span style={labelStyle}>
+              {isBR ? "simbolo" : "symbol"}
+              {isEdited("currency_symbol") && <span style={{ color: COR.sucesso, fontSize: 8, marginLeft: 4 }}>●</span>}
+            </span>
+            <input
+              value={currSymbol}
+              onChange={(e) => setVal("currency_symbol", e.target.value)}
+              style={inputBaseStyle}
+              onFocus={applyFocusGlow}
+              onBlur={removeFocusGlow}
+              maxLength={8}
+            />
+          </motion.div>
+
+          {/* Icone */}
+          <motion.div variants={staggerItem}>
+            <span style={labelStyle}>
+              {isBR ? "caminho do icone" : "icon path"}
+              {isEdited("currency_icon") && <span style={{ color: COR.sucesso, fontSize: 8, marginLeft: 4 }}>●</span>}
+            </span>
+            <input
+              value={currIcon}
+              onChange={(e) => setVal("currency_icon", e.target.value)}
+              style={inputBaseStyle}
+              onFocus={applyFocusGlow}
+              onBlur={removeFocusGlow}
+            />
+          </motion.div>
+
+          {/* Preview da moeda */}
+          <motion.div variants={staggerItem}>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "8px 12px", borderRadius: 8,
+              background: "rgba(255,255,255,0.02)",
+              border: `1px solid ${COR.secaoBorda}`,
+            }}>
+              <span style={{ fontSize: "clamp(8px, 0.8vw, 10px)", color: COR.txtSutil }}>
+                Preview:
+              </span>
+              <img
+                src={getVal("currency_icon") || currIcon}
+                alt=""
+                style={{ width: 16, height: 16, objectFit: "contain" }}
+                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+              />
+              <span style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontWeight: 700, fontSize: "clamp(11px, 1.1vw, 14px)",
+                color: COR.goldClaro,
+              }}>
+                1.000 {getVal("currency_symbol") || currSymbol}
+              </span>
+            </div>
+          </motion.div>
+
+          {/* Separador */}
+          <motion.div variants={staggerItem} style={{
+            height: 1,
+            background: `linear-gradient(90deg, transparent, ${COR.secaoBorda}, transparent)`,
+            margin: "4px 0",
+          }} />
+
+          {/* ═══ GUIA PASSO A PASSO ═══ */}
+          <motion.div variants={staggerItem}>
+            <div style={{
+              padding: "clamp(10px, 1.2vw, 16px)",
+              borderRadius: 10,
+              background: "rgba(0,230,118,0.03)",
+              border: `1px solid rgba(0,230,118,0.15)`,
+            }}>
+              <div style={{
+                fontFamily: "'Cinzel', serif",
+                fontWeight: 700,
+                fontSize: "clamp(10px, 1vw, 13px)",
+                color: "#00E676",
+                letterSpacing: "1.5px",
+                marginBottom: "clamp(8px, 1vw, 12px)",
+              }}>
+                {isBR ? "GUIA: COMO CONFIGURAR" : "GUIDE: HOW TO CONFIGURE"}
+              </div>
+
+              {/* Passo 1 */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: "clamp(9px, 0.9vw, 11px)", color: COR.goldClaro, fontWeight: 700, marginBottom: 3 }}>
+                  {isBR ? "1. Descubra o salario/hora do seu servidor" : "1. Find your server's hourly salary"}
+                </div>
+                <div style={{ fontSize: "clamp(8px, 0.8vw, 10px)", color: COR.txtSutil, lineHeight: 1.5 }}>
+                  {isBR
+                    ? "Verifique quanto um jogador ganha por hora no trabalho mais basico (ex: lixeiro, taxista). Esse numero eh a base do calculo."
+                    : "Check how much a player earns per hour at the most basic job (e.g. garbage, taxi). This number is the calculation base."}
+                </div>
+              </div>
+
+              {/* Passo 2 */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: "clamp(9px, 0.9vw, 11px)", color: COR.goldClaro, fontWeight: 700, marginBottom: 3 }}>
+                  {isBR ? "2. Divida por 10.000" : "2. Divide by 10,000"}
+                </div>
+                <div style={{ fontSize: "clamp(8px, 0.8vw, 10px)", color: COR.txtSutil, lineHeight: 1.5 }}>
+                  {isBR
+                    ? "O resultado eh o multiplicador ideal. Exemplo: se o salario eh 800/h, o multiplicador eh 800 / 10.000 = 0.08"
+                    : "The result is the ideal multiplier. Example: if salary is 800/h, the multiplier is 800 / 10,000 = 0.08"}
+                </div>
+              </div>
+
+              {/* Passo 3 */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: "clamp(9px, 0.9vw, 11px)", color: COR.goldClaro, fontWeight: 700, marginBottom: 3 }}>
+                  {isBR ? "3. Ou use um preset" : "3. Or use a preset"}
+                </div>
+                <div style={{ fontSize: "clamp(8px, 0.8vw, 10px)", color: COR.txtSutil, lineHeight: 1.5 }}>
+                  {isBR
+                    ? "Nao quer calcular? Clique em um dos 3 presets acima. Artesanal = servidores pequenos, Medio = padrao, Alto = servidores com economia forte."
+                    : "Don't want to calculate? Click one of the 3 presets above. Artisan = small servers, Medium = default, High = servers with strong economy."}
+                </div>
+              </div>
+
+              {/* Separador */}
+              <div style={{ height: 1, background: "rgba(0,230,118,0.1)", margin: "8px 0" }} />
+
+              {/* Exemplo pratico */}
+              <div style={{
+                fontSize: "clamp(9px, 0.9vw, 11px)",
+                color: COR.goldClaro,
+                fontWeight: 700,
+                marginBottom: 6,
+              }}>
+                {isBR ? "EXEMPLO PRATICO:" : "PRACTICAL EXAMPLE:"}
+              </div>
+
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr",
+                gap: 6,
+                fontSize: "clamp(8px, 0.8vw, 10px)",
+                fontFamily: "'JetBrains Mono', monospace",
+              }}>
+                {/* Cenario 1 */}
+                <div style={{
+                  padding: "6px 8px", borderRadius: 6,
+                  background: "rgba(255,255,255,0.02)",
+                  border: `1px solid ${COR.secaoBorda}`,
+                  color: "rgba(255,255,255,0.6)",
+                }}>
+                  <span style={{ color: COR.goldClaro }}>
+                    {isBR ? "Servidor com salario 500/h" : "Server with salary 500/h"}
+                  </span>
+                  <br />
+                  {isBR ? "Multiplicador" : "Multiplier"}: <span style={{ color: "#00E676" }}>0.05</span>
+                  <br />
+                  {isBR ? "Roda mostra 100 → jogador ganha" : "Wheel shows 100 → player gets"} <span style={{ color: "#00E676" }}>5 {currSymbol}</span>
+                  <br />
+                  {isBR ? "Milestone D28 (2500) → jogador ganha" : "Milestone D28 (2500) → player gets"} <span style={{ color: "#00E676" }}>125 {currSymbol}</span>
+                </div>
+
+                {/* Cenario 2 */}
+                <div style={{
+                  padding: "6px 8px", borderRadius: 6,
+                  background: "rgba(255,255,255,0.02)",
+                  border: `1px solid ${COR.secaoBorda}`,
+                  color: "rgba(255,255,255,0.6)",
+                }}>
+                  <span style={{ color: COR.goldClaro }}>
+                    {isBR ? "Servidor com salario 10.000/h" : "Server with salary 10,000/h"}
+                  </span>
+                  <br />
+                  {isBR ? "Multiplicador" : "Multiplier"}: <span style={{ color: "#00E676" }}>1.00</span>
+                  <br />
+                  {isBR ? "Roda mostra 100 → jogador ganha" : "Wheel shows 100 → player gets"} <span style={{ color: "#00E676" }}>100 {currSymbol}</span>
+                  <br />
+                  {isBR ? "Milestone D28 (2500) → jogador ganha" : "Milestone D28 (2500) → player gets"} <span style={{ color: "#00E676" }}>2.500 {currSymbol}</span>
+                </div>
+
+                {/* Cenario 3 */}
+                <div style={{
+                  padding: "6px 8px", borderRadius: 6,
+                  background: "rgba(255,255,255,0.02)",
+                  border: `1px solid ${COR.secaoBorda}`,
+                  color: "rgba(255,255,255,0.6)",
+                }}>
+                  <span style={{ color: COR.goldClaro }}>
+                    {isBR ? "Servidor com salario 50.000/h" : "Server with salary 50,000/h"}
+                  </span>
+                  <br />
+                  {isBR ? "Multiplicador" : "Multiplier"}: <span style={{ color: "#00E676" }}>5.00</span>
+                  <br />
+                  {isBR ? "Roda mostra 100 → jogador ganha" : "Wheel shows 100 → player gets"} <span style={{ color: "#00E676" }}>500 {currSymbol}</span>
+                  <br />
+                  {isBR ? "Milestone D28 (2500) → jogador ganha" : "Milestone D28 (2500) → player gets"} <span style={{ color: "#00E676" }}>12.500 {currSymbol}</span>
+                </div>
+              </div>
+
+              {/* Nota importante */}
+              <div style={{
+                marginTop: 8, padding: "6px 8px", borderRadius: 6,
+                background: "rgba(255,159,28,0.05)",
+                border: "1px solid rgba(255,159,28,0.15)",
+                fontSize: "clamp(8px, 0.8vw, 10px)",
+                color: "rgba(255,159,28,0.8)",
+                lineHeight: 1.5,
+              }}>
+                {isBR
+                  ? "Dica: comece com um valor conservador (baixo) e aumente gradualmente. Eh mais facil dar mais dinheiro do que tirar depois que os jogadores ja ganharam."
+                  : "Tip: start with a conservative (low) value and increase gradually. It's easier to give more money than to take it back after players already earned it."}
+              </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      );
+    }
+
     if (activeTab === "security") {
       return (
         <motion.div

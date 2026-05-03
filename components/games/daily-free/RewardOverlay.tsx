@@ -1,630 +1,440 @@
 "use client";
 
-// RewardOverlay — Modal "PARABENS!" do Daily-Free
-// F3.F - 30/04/2026
-//
-// Aparece apos o spin da wheel terminar.
-// 2 variantes:
-//   1. Regular reward (giro comum): "+200 GC"
-//   2. Milestone reward (D7/D14/D21/D28): "+200 GC" do giro + "+500 GC" bonus + badge do milestone
-//
-// Visual luxo (referencia: Imagem 7 do BC):
-//   - brasao-vitoria.png no topo (PNG AAA com asas + estrela + laurel + gema)
-//   - Confetti animado caindo (confetti-gold-emerald.png replicado em CSS)
-//   - "PARABENS!" Cinzel dourado metalico
-//   - Numero gigante VERDE 3D com glow
-//   - Divider ornamental gold
-//   - Botao COLETAR verde luxo polido com pulse
-//
-// Bilingue BR/IN automatico
+import { motion } from "framer-motion";
+import { useMemo } from "react";
 
-import { useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+// ===========================================================================
+// MODAL 1: RESULTADO (PARABÉNS) — Daily-Free
+// Overlay que aparece após o giro com o prêmio ganho
+// CSS inline, zero Tailwind, Framer Motion
+// ===========================================================================
+
+type Lang = "br" | "in";
+
+interface WheelSegment {
+  value: number;
+  tier: "common" | "good" | "big" | "mystery";
+  angle: number;
+}
 
 interface RewardOverlayProps {
-  // Estado de visibilidade (controlado pelo DailyFreeGame)
-  open: boolean;
-  // Callback quando jogador clica em COLETAR
-  onCollect: () => void;
-  // Resultado do giro (vem do casino:daily:claim do server)
-  reward: {
-    wheelAmount: number;          // Premio do wheel (50, 100, 200, 500, 1000 ou Mystery 1000-5000)
-    segmentTier: "common" | "good" | "big" | "mystery";
-    mysteryAmount: number | null; // Se Mystery, valor sorteado dentro do range
-    milestoneDay: number | null;  // 7, 14, 21, 28 ou null
-    milestoneBonus: number;       // 500, 1000, 2500, 5000 ou 0
-    totalAwarded: number;         // wheelAmount + milestoneBonus
-    isAnchor: boolean;            // primeiro daily-free vitalicio
-  };
-  // Dia atual no ciclo (para texto "DIA X DE 28")
+  segment: WheelSegment;
+  multiplier: number;
+  currencyName: string;
   currentDay: number;
-  cycleDays?: number;
-  lang: "br" | "in" | "en";
+  lang: Lang;
+  onCollect: () => void;
 }
 
-const GOLD = {
-  primary: "#D4A843",
-  light: "#FFD700",
-  dark: "#8B6914",
-  glow: "rgba(212,168,67,0.55)",
+const ASSETS = {
+  brasaoVitoria: "/assets/games/daily-free/brasao-vitoria.png",
+  frameLuxo: "/assets/games/daily-free/frame-luxo-ornamental.png",
+  coinSmall: "/assets/games/daily-free/prizes/coin-small.png",
+  coinMedium: "/assets/games/daily-free/prizes/coin-medium.png",
+  coinStack: "/assets/games/daily-free/prizes/coin-stack.png",
+  treasure: "/assets/games/daily-free/prizes/treasure.png",
+  gemGreen: "/assets/games/daily-free/prizes/gem-green.png",
+  dividerOrnamental: "/assets/shared/ui/divider-ornamental-gold.png",
 };
 
-const EMERALD = {
-  primary: "#00C853",
-  light: "#00E676",
-  glow: "rgba(0,230,118,0.55)",
+const TEXTS = {
+  congrats: { br: "PARABÉNS!", in: "CONGRATULATIONS!" },
+  youWon: { br: "VOCÊ GANHOU", in: "YOU WON" },
+  base: { br: "BASE", in: "BASE" },
+  collect: { br: "COLETAR", in: "COLLECT" },
+  dayOf28: { br: "DIA", in: "DAY" },
+  of28: { br: "DE 28", in: "OF 28" },
 };
 
-const BRASAO_PNG = "/assets/games/daily-free/brasao-vitoria.png";
-const CONFETTI_PNG = "/assets/shared/ui/confetti-gold-emerald.png";
-const DIVIDER_PNG = "/assets/shared/ui/divider-ornamental-gold.png";
+// Confetti particles
+const CONFETTI_COLORS = ["#FFD700", "#00E676", "#D4A843", "#FFFFFF", "#4B69FF"];
 
-function normalizeLang(lang: "br" | "in" | "en"): "br" | "in" {
-  return lang === "en" ? "in" : lang;
-}
+function Confetti() {
+  const particles = useMemo(() => 
+    Array.from({ length: 50 }).map((_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 2,
+      size: 4 + Math.random() * 8,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      rotation: Math.random() * 360,
+    }))
+  , []);
 
-// Path do badge do milestone (dependente de idioma)
-function milestoneBadgePath(day: number, lang: "br" | "in"): string {
-  return `/assets/games/daily-free/badges/badge-streak-${day}-${lang.toUpperCase()}.png`;
+  return (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      overflow: "hidden",
+      pointerEvents: "none",
+      zIndex: 0,
+    }}>
+      {particles.map(p => (
+        <motion.div
+          key={p.id}
+          initial={{ 
+            x: `${p.x}vw`, 
+            y: "-10%",
+            rotate: p.rotation,
+            opacity: 1,
+          }}
+          animate={{ 
+            y: "110%",
+            rotate: p.rotation + 360,
+            opacity: [1, 1, 0],
+          }}
+          transition={{
+            duration: p.duration,
+            delay: p.delay,
+            repeat: Infinity,
+            ease: "linear",
+          }}
+          style={{
+            position: "absolute",
+            width: p.size,
+            height: p.size,
+            backgroundColor: p.color,
+            borderRadius: Math.random() > 0.5 ? "50%" : "2px",
+            boxShadow: `0 0 6px ${p.color}`,
+          }}
+        />
+      ))}
+    </div>
+  );
 }
 
 export default function RewardOverlay({
-  open,
-  onCollect,
-  reward,
+  segment,
+  multiplier,
+  currencyName,
   currentDay,
-  cycleDays = 28,
   lang,
+  onCollect,
 }: RewardOverlayProps) {
-  const langNorm = normalizeLang(lang);
-  const hasMilestone = reward.milestoneDay !== null && reward.milestoneBonus > 0;
-  const isMystery = reward.segmentTier === "mystery";
+  // Calcular valor final
+  const baseValue = segment.tier === "mystery" 
+    ? 1000 + Math.floor(Math.random() * 4000) // Mystery: 1000-5000
+    : segment.value;
+  const finalValue = baseValue * multiplier;
 
-  // Tira foco/scroll do body quando aberto (UX comum em modais celebrativos)
-  useEffect(() => {
-    if (!open) return;
-    const original = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = original;
-    };
-  }, [open]);
-
-  // Esc para fechar (atalho de coletar)
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " " || e.key === "Escape") {
-        e.preventDefault();
-        onCollect();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [open, onCollect]);
-
-  // Textos bilingues
-  const T = {
-    br: {
-      parabens: "PARABÉNS!",
-      voceGanhou: "VOCÊ GANHOU",
-      anchor: "PRIMEIRO BÔNUS!",
-      mysteryLabel: "MYSTERY",
-      diaDe: `DIA ${currentDay} DE ${cycleDays}`,
-      milestoneAtingido: (d: number) => `MILESTONE DE ${d} DIAS!`,
-      bonusExtra: "BÔNUS EXTRA",
-      totalLabel: "TOTAL RECEBIDO",
-      coletar: "COLETAR",
-    },
-    in: {
-      parabens: "CONGRATULATIONS!",
-      voceGanhou: "YOU WON",
-      anchor: "FIRST BONUS!",
-      mysteryLabel: "MYSTERY",
-      diaDe: `DAY ${currentDay} OF ${cycleDays}`,
-      milestoneAtingido: (d: number) => `${d}-DAY MILESTONE!`,
-      bonusExtra: "EXTRA BONUS",
-      totalLabel: "TOTAL RECEIVED",
-      coletar: "COLLECT",
-    },
-  }[langNorm];
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.25 }}
-          // Backdrop semi-transparente preto
-          style={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 100,
-            background: "rgba(0,0,0,0.85)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "clamp(16px, 3vw, 32px)",
-          }}
-        >
-          {/* ============== CONFETTI ANIMADO no fundo ============== */}
-          <ConfettiLayer />
-
-          {/* ============== CARD PRINCIPAL ============== */}
-          <motion.div
-            initial={{ scale: 0.6, opacity: 0, y: 30 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.85, opacity: 0, y: 10 }}
-            transition={{ type: "spring", stiffness: 240, damping: 22 }}
-            style={{
-              position: "relative",
-              zIndex: 2,
-              maxWidth: "min(520px, 90vw)",
-              width: "100%",
-              maxHeight: "92vh",
-              overflowY: "auto",
-              padding: "clamp(24px, 3.5vw, 40px) clamp(20px, 3vw, 36px)",
-              background:
-                "linear-gradient(180deg, rgba(20,16,12,0.96) 0%, rgba(8,7,6,0.98) 100%)",
-              border: `2px solid ${GOLD.primary}`,
-              borderRadius: "20px",
-              boxShadow: [
-                `0 0 0 2px ${GOLD.dark}`,
-                `0 0 40px ${GOLD.glow}`,
-                `0 0 80px rgba(212,168,67,0.25)`,
-                `0 20px 60px rgba(0,0,0,0.7)`,
-                "inset 0 2px 4px rgba(255,215,0,0.15)",
-                "inset 0 -2px 4px rgba(0,0,0,0.5)",
-              ].join(", "),
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: "clamp(14px, 1.8vw, 20px)",
-              textAlign: "center",
-            }}
-          >
-            {/* BRASAO PNG no topo (com pulse celebrativo na entrada) */}
-            <motion.img
-              src={BRASAO_PNG}
-              alt=""
-              aria-hidden
-              initial={{ scale: 0, rotate: -15, opacity: 0 }}
-              animate={{ scale: 1, rotate: 0, opacity: 1 }}
-              transition={{
-                type: "spring",
-                stiffness: 200,
-                damping: 14,
-                delay: 0.15,
-              }}
-              style={{
-                width: "clamp(110px, 14vw, 170px)",
-                height: "auto",
-                marginTop: "-30%",
-                filter: `drop-shadow(0 0 18px ${GOLD.glow}) drop-shadow(0 6px 12px rgba(0,0,0,0.7))`,
-              }}
-            />
-
-            {/* TITULO PARABENS! */}
-            <motion.h2
-              initial={{ y: -10, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.3 }}
-              style={{
-                fontFamily: "'Cinzel', serif",
-                fontWeight: 800,
-                fontSize: "clamp(22px, 3vw, 36px)",
-                background: `linear-gradient(180deg, ${GOLD.light} 0%, ${GOLD.primary} 50%, ${GOLD.dark} 100%)`,
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-                color: GOLD.primary, // fallback
-                letterSpacing: "4px",
-                margin: 0,
-                filter: `drop-shadow(0 0 14px ${GOLD.glow}) drop-shadow(0 2px 4px rgba(0,0,0,0.6))`,
-              }}
-            >
-              {reward.isAnchor ? T.anchor : T.parabens}
-            </motion.h2>
-
-            {/* SUBTITLE "VOCE GANHOU" */}
-            <div
-              style={{
-                fontFamily: "'Cinzel', serif",
-                fontWeight: 600,
-                fontSize: "clamp(11px, 1.2vw, 14px)",
-                color: "rgba(212,168,67,0.75)",
-                letterSpacing: "3px",
-                marginTop: "-10px",
-              }}
-            >
-              {T.voceGanhou}
-            </div>
-
-            {/* DIVIDER PNG */}
-            <img
-              src={DIVIDER_PNG}
-              alt=""
-              aria-hidden
-              style={{
-                width: "65%",
-                height: "auto",
-                opacity: 0.85,
-                filter: `drop-shadow(0 0 6px ${GOLD.glow})`,
-              }}
-            />
-
-            {/* ============== VALOR PRINCIPAL: wheel amount ============== */}
-            <RewardValue
-              amount={reward.wheelAmount}
-              label={isMystery ? T.mysteryLabel : null}
-              tier={reward.segmentTier}
-            />
-
-            {/* ============== BLOCO MILESTONE (so se for D7/14/21/28) ============== */}
-            {hasMilestone && reward.milestoneDay !== null && (
-              <motion.div
-                initial={{ scale: 0, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{
-                  type: "spring",
-                  stiffness: 240,
-                  damping: 18,
-                  delay: 0.6,
-                }}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "clamp(8px, 1vw, 12px)",
-                  width: "100%",
-                  padding: "clamp(12px, 1.6vw, 18px)",
-                  background:
-                    "linear-gradient(135deg, rgba(0,80,40,0.18) 0%, rgba(0,40,20,0.15) 100%)",
-                  border: `1.5px solid ${EMERALD.primary}`,
-                  borderRadius: "14px",
-                  boxShadow: [
-                    `0 0 16px ${EMERALD.glow}`,
-                    "inset 0 1px 2px rgba(0,230,118,0.15)",
-                  ].join(", "),
-                }}
-              >
-                {/* Badge PNG do milestone */}
-                <img
-                  src={milestoneBadgePath(reward.milestoneDay, langNorm)}
-                  alt=""
-                  style={{
-                    width: "clamp(64px, 7vw, 92px)",
-                    height: "auto",
-                    filter: `drop-shadow(0 0 12px ${EMERALD.glow}) drop-shadow(0 3px 6px rgba(0,0,0,0.6))`,
-                  }}
-                />
-                {/* Texto "MILESTONE DE 7 DIAS!" */}
-                <div
-                  style={{
-                    fontFamily: "'Cinzel', serif",
-                    fontWeight: 800,
-                    fontSize: "clamp(13px, 1.4vw, 17px)",
-                    color: EMERALD.light,
-                    letterSpacing: "2px",
-                    textShadow: `0 0 10px ${EMERALD.glow}`,
-                  }}
-                >
-                  {T.milestoneAtingido(reward.milestoneDay)}
-                </div>
-                {/* Bonus value */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-                  <span
-                    style={{
-                      fontFamily: "'Cinzel', serif",
-                      fontWeight: 600,
-                      fontSize: "clamp(10px, 1vw, 12px)",
-                      color: "rgba(0,230,118,0.7)",
-                      letterSpacing: "2px",
-                    }}
-                  >
-                    {T.bonusExtra}
-                  </span>
-                  <span
-                    style={{
-                      fontFamily: "'Cinzel', serif",
-                      fontWeight: 800,
-                      fontSize: "clamp(22px, 2.4vw, 30px)",
-                      color: EMERALD.light,
-                      textShadow: `0 0 14px ${EMERALD.glow}, 0 2px 4px rgba(0,0,0,0.7)`,
-                      letterSpacing: "1px",
-                    }}
-                  >
-                    +{reward.milestoneBonus.toLocaleString("pt-BR")} GC
-                  </span>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ============== TOTAL (so mostra quando ha bonus de milestone) ============== */}
-            {hasMilestone && (
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: "4px",
-                  marginTop: "4px",
-                }}
-              >
-                <span
-                  style={{
-                    fontFamily: "'Cinzel', serif",
-                    fontWeight: 600,
-                    fontSize: "clamp(10px, 1vw, 12px)",
-                    color: "rgba(255,215,0,0.65)",
-                    letterSpacing: "2px",
-                  }}
-                >
-                  {T.totalLabel}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "'Cinzel', serif",
-                    fontWeight: 800,
-                    fontSize: "clamp(20px, 2.2vw, 28px)",
-                    color: GOLD.light,
-                    textShadow: `0 0 12px ${GOLD.glow}, 0 2px 4px rgba(0,0,0,0.7)`,
-                    letterSpacing: "1px",
-                  }}
-                >
-                  {reward.totalAwarded.toLocaleString("pt-BR")} GC
-                </span>
-              </div>
-            )}
-
-            {/* CONTEXTO "DIA 12 DE 28" */}
-            <div
-              style={{
-                fontFamily: "'Cinzel', serif",
-                fontWeight: 600,
-                fontSize: "clamp(11px, 1.1vw, 13px)",
-                color: "rgba(212,168,67,0.65)",
-                letterSpacing: "3px",
-                marginTop: hasMilestone ? "-4px" : "-6px",
-              }}
-            >
-              {T.diaDe}
-            </div>
-
-            {/* DIVIDER PNG novamente */}
-            <img
-              src={DIVIDER_PNG}
-              alt=""
-              aria-hidden
-              style={{
-                width: "65%",
-                height: "auto",
-                opacity: 0.85,
-                filter: `drop-shadow(0 0 6px ${GOLD.glow})`,
-                transform: "rotate(180deg)", // espelha pra simetria visual
-              }}
-            />
-
-            {/* BOTAO COLETAR (verde luxo polido com pulse) */}
-            <motion.button
-              onClick={onCollect}
-              whileHover={{
-                scale: 1.04,
-                boxShadow: `0 0 28px ${EMERALD.glow}, 0 0 0 2px ${EMERALD.light}, inset 0 0 14px rgba(0,230,118,0.25)`,
-              }}
-              whileTap={{ scale: 0.96 }}
-              animate={{
-                boxShadow: [
-                  `0 0 16px ${EMERALD.glow}, 0 0 0 1.5px ${EMERALD.primary}, inset 0 1px 2px rgba(0,230,118,0.2)`,
-                  `0 0 26px ${EMERALD.light}, 0 0 0 2px ${EMERALD.light}, inset 0 1px 2px rgba(0,230,118,0.3)`,
-                  `0 0 16px ${EMERALD.glow}, 0 0 0 1.5px ${EMERALD.primary}, inset 0 1px 2px rgba(0,230,118,0.2)`,
-                ],
-              }}
-              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-              style={{
-                marginTop: "8px",
-                padding: "clamp(12px, 1.6vw, 18px) clamp(40px, 6vw, 64px)",
-                background: `linear-gradient(180deg, ${EMERALD.light} 0%, ${EMERALD.primary} 50%, #007530 100%)`,
-                border: `2px solid ${EMERALD.light}`,
-                borderRadius: "10px",
-                cursor: "pointer",
-                fontFamily: "'Cinzel', serif",
-                fontWeight: 800,
-                fontSize: "clamp(15px, 1.6vw, 19px)",
-                color: "#FFFFFF",
-                letterSpacing: "4px",
-                textShadow: "0 2px 4px rgba(0,0,0,0.5), 0 0 8px rgba(0,230,118,0.4)",
-                minWidth: "clamp(180px, 22vw, 260px)",
-              }}
-            >
-              {T.coletar}
-            </motion.button>
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-}
-
-// ============================================================
-// SUBCOMPONENTE: RewardValue (numero gigante verde 3D)
-// ============================================================
-function RewardValue({
-  amount,
-  label,
-  tier,
-}: {
-  amount: number;
-  label: string | null;
-  tier: "common" | "good" | "big" | "mystery";
-}) {
-  // Mystery e tiers altos ganham mais glow
-  const intensity = tier === "mystery" ? 1.4 : tier === "big" ? 1.2 : 1;
+  // Icone baseado no tier
+  const prizeIcon = useMemo(() => {
+    switch (segment.tier) {
+      case "common": return ASSETS.coinSmall;
+      case "good": return ASSETS.coinMedium;
+      case "big": return ASSETS.coinStack;
+      case "mystery": return ASSETS.treasure;
+      default: return ASSETS.coinSmall;
+    }
+  }, [segment.tier]);
 
   return (
     <motion.div
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      transition={{
-        type: "spring",
-        stiffness: 200,
-        damping: 14,
-        delay: 0.5,
-      }}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: "4px",
-      }}
-    >
-      {label && (
-        <span
-          style={{
-            fontFamily: "'Cinzel', serif",
-            fontWeight: 700,
-            fontSize: "clamp(11px, 1.1vw, 13px)",
-            color: GOLD.light,
-            letterSpacing: "4px",
-            textShadow: `0 0 10px ${GOLD.glow}`,
-            opacity: 0.85,
-          }}
-        >
-          {label}
-        </span>
-      )}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "baseline",
-          gap: "clamp(6px, 0.8vw, 12px)",
-        }}
-      >
-        {/* Numero principal verde 3D gigante */}
-        <span
-          style={{
-            fontFamily: "'Cinzel', serif",
-            fontWeight: 900,
-            // Tamanho dinamico (Mystery e bigger sao maiores)
-            fontSize: `clamp(${36 * intensity}px, ${5 * intensity}vw, ${64 * intensity}px)`,
-            // Gradiente verde 3D metalico (efeito Imagem 7)
-            background: `linear-gradient(180deg, ${EMERALD.light} 0%, ${EMERALD.primary} 50%, #007530 100%)`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            color: EMERALD.light, // fallback
-            letterSpacing: "1px",
-            lineHeight: 1,
-            // Multiplas drop-shadows pra dar profundidade 3D
-            filter: [
-              `drop-shadow(0 0 ${20 * intensity}px ${EMERALD.glow})`,
-              `drop-shadow(0 0 ${40 * intensity}px rgba(0,230,118,0.3))`,
-              `drop-shadow(0 4px 6px rgba(0,0,0,0.7))`,
-            ].join(" "),
-          }}
-        >
-          +{amount.toLocaleString("pt-BR")}
-        </span>
-        {/* Texto "GC" menor mas no mesmo gradiente */}
-        <span
-          style={{
-            fontFamily: "'Cinzel', serif",
-            fontWeight: 800,
-            fontSize: `clamp(${20 * intensity}px, ${2.6 * intensity}vw, ${36 * intensity}px)`,
-            background: `linear-gradient(180deg, ${EMERALD.light} 0%, ${EMERALD.primary} 100%)`,
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            color: EMERALD.primary,
-            letterSpacing: "2px",
-            filter: `drop-shadow(0 0 12px ${EMERALD.glow}) drop-shadow(0 2px 3px rgba(0,0,0,0.6))`,
-          }}
-        >
-          GCoin
-        </span>
-      </div>
-    </motion.div>
-  );
-}
-
-// ============================================================
-// CAMADA DE CONFETTI ANIMADO
-// ============================================================
-function ConfettiLayer() {
-  return (
-    <div
-      aria-hidden
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
       style={{
         position: "absolute",
         inset: 0,
-        pointerEvents: "none",
-        zIndex: 1,
-        overflow: "hidden",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 100,
+        background: "radial-gradient(ellipse at center, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.92) 100%)",
+        backdropFilter: "blur(6px)",
       }}
     >
-      {/* PNG de confetti como layer base (estatico) */}
-      <motion.img
-        src={CONFETTI_PNG}
-        alt=""
-        initial={{ opacity: 0, scale: 1.2 }}
-        animate={{ opacity: 0.85, scale: 1 }}
-        transition={{ duration: 0.6 }}
-        style={{
-          position: "absolute",
-          top: "-10%",
-          left: "-5%",
-          width: "110%",
-          height: "auto",
-          mixBlendMode: "screen",
-          filter: "brightness(1.1)",
+      {/* Confetti */}
+      <Confetti />
+
+      {/* Card principal */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.5, y: 50 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.8, y: -30 }}
+        transition={{ 
+          duration: 0.5, 
+          ease: [0.34, 1.56, 0.64, 1],
         }}
-      />
-      {/* Confetti dinamicos extras: 16 particulas caindo (CSS) */}
-      {[...Array(16)].map((_, i) => {
-        const isGold = i % 2 === 0;
-        const delay = (i * 0.15) % 2;
-        const xStart = 5 + (i * 6.2) % 90;
-        const drift = (i % 4 === 0 ? 1 : -1) * (10 + (i % 3) * 8);
-        return (
-          <motion.div
-            key={`confetti-extra-${i}`}
-            initial={{
-              y: -50,
-              x: 0,
-              rotate: 0,
-              opacity: 0,
+        style={{
+          position: "relative",
+          width: "clamp(340px, 45vw, 520px)",
+          padding: "clamp(30px, 4vw, 50px) clamp(24px, 3vw, 40px)",
+          borderRadius: "16px",
+          background: "linear-gradient(180deg, rgba(20,18,15,0.98) 0%, rgba(8,6,4,1) 100%)",
+          border: "2px solid rgba(212,168,67,0.5)",
+          boxShadow: `
+            0 0 80px rgba(255,215,0,0.3),
+            0 0 120px rgba(0,230,118,0.15),
+            inset 0 0 60px rgba(0,0,0,0.7),
+            0 30px 80px rgba(0,0,0,0.6)
+          `,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "clamp(12px, 1.5vw, 20px)",
+          zIndex: 1,
+        }}
+      >
+        {/* Frame ornamental por cima */}
+        <img
+          src={ASSETS.frameLuxo}
+          alt=""
+          style={{
+            position: "absolute",
+            inset: "-8%",
+            width: "116%",
+            height: "116%",
+            objectFit: "fill",
+            pointerEvents: "none",
+            filter: "drop-shadow(0 0 30px rgba(255,215,0,0.3))",
+            zIndex: -1,
+          }}
+        />
+
+        {/* Brasao de vitoria */}
+        <motion.img
+          src={ASSETS.brasaoVitoria}
+          alt=""
+          initial={{ scale: 0, rotate: -15 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ delay: 0.2, duration: 0.5, ease: [0.34, 1.56, 0.64, 1] }}
+          style={{
+            width: "clamp(80px, 10vw, 120px)",
+            height: "clamp(80px, 10vw, 120px)",
+            objectFit: "contain",
+            filter: "drop-shadow(0 0 30px rgba(255,215,0,0.6))",
+            marginTop: "-clamp(50px, 6vw, 70px)",
+          }}
+        />
+
+        {/* Titulo PARABENS */}
+        <motion.h1
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          style={{
+            fontFamily: "'Cinzel', serif",
+            fontWeight: 900,
+            fontSize: "clamp(28px, 3.5vw, 44px)",
+            color: "#FFD700",
+            letterSpacing: "4px",
+            textTransform: "uppercase",
+            textShadow: `
+              0 0 30px rgba(255,215,0,0.7),
+              0 0 60px rgba(255,215,0,0.4),
+              0 4px 8px rgba(0,0,0,0.8)
+            `,
+            margin: 0,
+            textAlign: "center",
+          }}
+        >
+          {TEXTS.congrats[lang]}
+        </motion.h1>
+
+        {/* Subtitulo */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "clamp(8px, 1vw, 14px)",
+          }}
+        >
+          <div style={{
+            width: "clamp(30px, 4vw, 50px)",
+            height: "2px",
+            background: "linear-gradient(90deg, transparent, rgba(212,168,67,0.6))",
+          }} />
+          <span style={{
+            fontFamily: "'Cinzel', serif",
+            fontWeight: 600,
+            fontSize: "clamp(12px, 1.4vw, 18px)",
+            color: "rgba(255,255,255,0.6)",
+            letterSpacing: "3px",
+            textTransform: "uppercase",
+          }}>
+            {TEXTS.youWon[lang]}
+          </span>
+          <div style={{
+            width: "clamp(30px, 4vw, 50px)",
+            height: "2px",
+            background: "linear-gradient(90deg, rgba(212,168,67,0.6), transparent)",
+          }} />
+        </motion.div>
+
+        {/* Valor do premio */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.5, duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "clamp(10px, 1.2vw, 18px)",
+          }}
+        >
+          {/* Icone do premio */}
+          <motion.img
+            src={prizeIcon}
+            alt=""
+            animate={{ 
+              rotate: [0, -5, 5, -5, 0],
+              scale: [1, 1.1, 1],
             }}
-            animate={{
-              y: ["0vh", "110vh"],
-              x: [0, drift, 0, drift * 0.5],
-              rotate: [0, 360, 720],
-              opacity: [0, 1, 1, 0],
-            }}
-            transition={{
-              duration: 3.5 + (i % 3),
-              repeat: Infinity,
-              delay,
-              ease: "linear",
-            }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1 }}
             style={{
-              position: "absolute",
-              top: "-5%",
-              left: `${xStart}%`,
-              width: "10px",
-              height: i % 3 === 0 ? "14px" : "6px",
-              background: isGold
-                ? `linear-gradient(135deg, ${GOLD.light}, ${GOLD.primary})`
-                : `linear-gradient(135deg, ${EMERALD.light}, ${EMERALD.primary})`,
-              boxShadow: isGold
-                ? `0 0 6px ${GOLD.glow}`
-                : `0 0 6px ${EMERALD.glow}`,
-              borderRadius: "1px",
+              width: "clamp(50px, 6vw, 80px)",
+              height: "clamp(50px, 6vw, 80px)",
+              objectFit: "contain",
+              filter: "drop-shadow(0 0 15px rgba(255,215,0,0.5))",
             }}
           />
-        );
-      })}
-    </div>
+
+          {/* Valor */}
+          <span style={{
+            fontFamily: "'JetBrains Mono', monospace",
+            fontWeight: 700,
+            fontSize: "clamp(44px, 5.5vw, 72px)",
+            color: "#00E676",
+            textShadow: `
+              0 0 30px rgba(0,230,118,0.7),
+              0 0 60px rgba(0,230,118,0.4),
+              0 4px 8px rgba(0,0,0,0.8)
+            `,
+            lineHeight: 1,
+          }}>
+            +{finalValue}
+          </span>
+
+          {/* Nome da moeda */}
+          <span style={{
+            fontFamily: "'Cinzel', serif",
+            fontWeight: 700,
+            fontSize: "clamp(18px, 2.2vw, 28px)",
+            color: "#00E676",
+            letterSpacing: "2px",
+            alignSelf: "flex-end",
+            paddingBottom: "clamp(4px, 0.5vw, 8px)",
+          }}>
+            {currencyName}
+          </span>
+        </motion.div>
+
+        {/* Calculo base x multiplier */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          style={{
+            fontFamily: "'Inter', sans-serif",
+            fontSize: "clamp(11px, 1.2vw, 15px)",
+            color: "rgba(255,255,255,0.5)",
+            textAlign: "center",
+          }}
+        >
+          {baseValue} {TEXTS.base[lang]} × <span style={{ color: "#FFD700" }}>{multiplier}x</span> = {finalValue} {currencyName}
+        </motion.div>
+
+        {/* Dia atual */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.65 }}
+          style={{
+            fontFamily: "'Cinzel', serif",
+            fontWeight: 600,
+            fontSize: "clamp(12px, 1.4vw, 18px)",
+            color: "rgba(212,168,67,0.8)",
+            letterSpacing: "2px",
+          }}
+        >
+          {TEXTS.dayOf28[lang]} {currentDay} {TEXTS.of28[lang]}
+        </motion.div>
+
+        {/* Botao COLETAR */}
+        <motion.button
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.7 }}
+          onClick={onCollect}
+          whileHover={{ scale: 1.03 }}
+          whileTap={{ scale: 0.97 }}
+          style={{
+            position: "relative",
+            marginTop: "clamp(8px, 1vw, 16px)",
+            fontFamily: "'Cinzel', serif",
+            fontWeight: 900,
+            fontSize: "clamp(16px, 1.8vw, 24px)",
+            letterSpacing: "4px",
+            textTransform: "uppercase",
+            color: "#FFFFFF",
+            padding: "clamp(14px, 1.8vw, 22px) clamp(50px, 6vw, 90px)",
+            borderRadius: "12px",
+            border: "2px solid rgba(0,230,118,0.5)",
+            background: "linear-gradient(180deg, #00E676 0%, #00C853 50%, #004D25 100%)",
+            boxShadow: `
+              0 0 30px rgba(0,230,118,0.5),
+              0 8px 24px rgba(0,0,0,0.5),
+              inset 0 2px 0 rgba(255,255,255,0.25),
+              inset 0 -2px 4px rgba(0,0,0,0.3)
+            `,
+            cursor: "pointer",
+            overflow: "hidden",
+          }}
+        >
+          {/* Shine effect */}
+          <motion.div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              width: "50%",
+              height: "100%",
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent)",
+              pointerEvents: "none",
+            }}
+            animate={{ x: ["0%", "300%"] }}
+            transition={{ duration: 2, repeat: Infinity, repeatDelay: 1.5 }}
+          />
+          {TEXTS.collect[lang]}
+        </motion.button>
+
+        {/* Gemas decorativas */}
+        <img
+          src={ASSETS.gemGreen}
+          alt=""
+          style={{
+            position: "absolute",
+            bottom: "10%",
+            left: "-5%",
+            width: "clamp(24px, 3vw, 40px)",
+            height: "clamp(24px, 3vw, 40px)",
+            objectFit: "contain",
+            opacity: 0.7,
+            filter: "drop-shadow(0 0 10px rgba(0,230,118,0.5))",
+          }}
+        />
+        <img
+          src={ASSETS.gemGreen}
+          alt=""
+          style={{
+            position: "absolute",
+            top: "15%",
+            right: "-4%",
+            width: "clamp(20px, 2.5vw, 34px)",
+            height: "clamp(20px, 2.5vw, 34px)",
+            objectFit: "contain",
+            opacity: 0.6,
+            filter: "drop-shadow(0 0 10px rgba(0,230,118,0.5))",
+            transform: "rotate(25deg)",
+          }}
+        />
+      </motion.div>
+    </motion.div>
   );
 }

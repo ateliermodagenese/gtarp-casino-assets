@@ -112,6 +112,29 @@ RegisterNUICallback("casino:admin:changePassword", function(data, cb)
   TriggerServerEvent("casino:admin:changePassword", id, data)
 end)
 
+-- Economy endpoints (admin autenticado)
+RegisterNUICallback("casino:admin:getConfigWithEconomy", function(data, cb)
+  callbackId = callbackId + 1
+  local id = callbackId
+  pendingCallbacks[id] = cb
+  TriggerServerEvent("casino:admin:getConfigWithEconomy", id, data)
+end)
+
+RegisterNUICallback("casino:admin:setConfigWithEconomy", function(data, cb)
+  callbackId = callbackId + 1
+  local id = callbackId
+  pendingCallbacks[id] = cb
+  TriggerServerEvent("casino:admin:setConfigWithEconomy", id, data)
+end)
+
+-- Economy config publico (jogos usam sem auth)
+RegisterNUICallback("casino:economy:getConfig", function(data, cb)
+  callbackId = callbackId + 1
+  local id = callbackId
+  pendingCallbacks[id] = cb
+  TriggerServerEvent("casino:economy:getConfig", id, data)
+end)
+
 -- Resposta unica do server — roteia pro callback correto pelo ID
 RegisterNetEvent("casino:panel:response")
 AddEventHandler("casino:panel:response", function(id, resultado)

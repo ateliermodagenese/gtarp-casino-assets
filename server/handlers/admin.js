@@ -296,4 +296,193 @@ setInterval(() => {
 
 console.log("[Blackout Casino] Admin handlers carregados — 5 endpoints (auth, setup, getConfig, setConfig, changePassword)");
 
+// ============================================================
+// ECONOMY KEYS — campos que vao pra casino_economy_config (nao casino_config)
+// ============================================================
+const ECONOMY_KEYS = ["global_multiplier", "currency_name", "currency_symbol", "currency_icon"];
+
+// Cache da economy config (invalidado quando admin salva)
+let economyCacheObj = null;
+let economyCacheTime = 0;
+const ECONOMY_CACHE_TTL = 30000; // 30s
+
+async function getEconomyConfig() {
+  const now = Date.now();
+  if (economyCacheObj && (now - economyCacheTime) < ECONOMY_CACHE_TTL) {
+    return economyCacheObj;
+  }
+
+  try {
+    const rows = await dbQuery("SELECT * FROM casino_economy_config WHERE id = 1", []);
+    if (rows && rows.length > 0) {
+      economyCacheObj = rows[0];
+      economyCacheTime = now;
+      return rows[0];
+    }
+  } catch (err) {
+    console.log(`[CASINO-ECONOMY] getEconomyConfig fallback — tabela pode nao existir: ${err.message}`);
+  }
+
+  // fallback se tabela nao existe
+  return {
+    global_multiplier: 1.0,
+    currency_name: "GCoin",
+    currency_symbol: "GC",
+    currency_icon: "/assets/shared/icons/icon-gcoin.png",
+  };
+}
+
+// ============================================================
+// PATCH: getConfig agora inclui economy data
+// ============================================================
+RegisterNetEvent("casino:admin:getConfigWithEconomy");
+on("casino:admin:getConfigWithEconomy", async (cbId, payload) => {
+  const src = source;
+  console.log(`[CASINO-ADMIN] getConfigWithEconomy src=${src} cbId=${cbId}`);
+  try {
+    if (!isValidSession(src, payload?.token)) {
+      return respond(src, cbId, { sucesso: false, mensagem: "Sessao invalida" });
+    }
+
+    // Busca configs legadas
+    const configRows = await dbQuery("SELECT chave, valor, descricao FROM casino_config ORDER BY chave", []);
+
+    // Busca economy config
+    const econ = await getEconomyConfig();
+
+    // Injeta campos economy como se fossem casino_config (frontend trata igual)
+    const economyRows = ECONOMY_KEYS.map(key => ({
+      chave: key,
+      valor: String(econ[key] ?? ""),
+      descricao: null,
+    }));
+
+    const merged = [...(configRows || []), ...economyRows];
+    console.log(`[CASINO-ADMIN] getConfigWithEconomy OK — ${(configRows || []).length} config + ${economyRows.length} economy`);
+    respond(src, cbId, { sucesso: true, configs: merged });
+  } catch (err) {
+    console.log(`[CASINO-ADMIN] getConfigWithEconomy ERRO: ${err.message}`);
+    respond(src, cbId, { sucesso: false, mensagem: err.message });
+  }
+});
+
+// ============================================================
+// PATCH: setConfig agora separa economy keys
+// ============================================================
+RegisterNetEvent("casino:admin:setConfigWithEconomy");
+on("casino:admin:setConfigWithEconomy", async (cbId, payload) => {
+  const src = source;
+  console.log(`[CASINO-ADMIN] setConfigWithEconomy src=${src} cbId=${cbId}`);
+  try {
+    if (!isValidSession(src, payload?.token)) {
+      return respond(src, cbId, { sucesso: false, mensagem: "Sessao invalida" });
+    }
+
+    const changes = payload?.changes;
+    if (!changes || typeof changes !== "object") {
+      return respond(src, cbId, { sucesso: false, mensagem: "Nenhuma alteracao enviada" });
+    }
+
+    let count = 0;
+    const economyUpdates = {};
+    const configUpdates = {};
+
+    for (const [chave, valor] of Object.entries(changes)) {
+      if (typeof chave !== "string" || chave.length === 0) continue;
+      if (ECONOMY_KEYS.includes(chave)) {
+        economyUpdates[chave] = valor;
+      } else {
+        configUpdates[chave] = valor;
+      }
+    }
+
+    // Salvar economy keys em casino_economy_config
+    if (Object.keys(economyUpdates).length > 0) {
+      const setClauses = [];
+      const params = [];
+      for (const [key, val] of Object.entries(economyUpdates)) {
+        setClauses.push(`${key} = ?`);
+        params.push(String(val));
+      }
+      await dbExecute(
+        `UPDATE casino_economy_config SET ${setClauses.join(", ")} WHERE id = 1`,
+        params
+      );
+      count += Object.keys(economyUpdates).length;
+      // Invalida cache
+      economyCacheObj = null;
+      economyCacheTime = 0;
+    }
+
+    // Salvar config keys legadas em casino_config
+    for (const [chave, valor] of Object.entries(configUpdates)) {
+      await dbExecute(
+        "UPDATE casino_config SET valor = ? WHERE chave = ?",
+        [String(valor), chave]
+      );
+      count++;
+    }
+
+    console.log(`[CASINO-ADMIN] setConfigWithEconomy OK — ${count} total (${Object.keys(economyUpdates).length} economy + ${Object.keys(configUpdates).length} config)`);
+    respond(src, cbId, { sucesso: true, mensagem: `${count} configuracoes salvas`, count });
+  } catch (err) {
+    console.log(`[CASINO-ADMIN] setConfigWithEconomy ERRO: ${err.message}`);
+    respond(src, cbId, { sucesso: false, mensagem: err.message });
+  }
+});
+
+// ============================================================
+// casino:economy:getConfig — PUBLICO (sem auth)
+// Jogos chamam isso pra obter multiplier + moeda
+// ============================================================
+RegisterNetEvent("casino:economy:getConfig");
+on("casino:economy:getConfig", async (cbId, payload) => {
+  const src = source;
+  try {
+    const econ = await getEconomyConfig();
+    const gameId = payload?.gameId;
+    let overrideVal = null;
+
+    // Buscar override do jogo especifico se tiver gameId
+    if (gameId) {
+      const tableMap = {
+        "daily-free": "casino_daily_config",
+        "slots": "casino_slots_config",
+        "bicho": "casino_bicho_config",
+        "blackjack": "casino_blackjack_config",
+      };
+      const table = tableMap[gameId];
+      if (table) {
+        try {
+          const rows = await dbQuery(`SELECT multiplier_override FROM ${table} WHERE id = 1`, []);
+          if (rows && rows[0] && rows[0].multiplier_override != null) {
+            overrideVal = parseFloat(rows[0].multiplier_override);
+          }
+        } catch {
+          // tabela pode nao ter a coluna ainda — ignora
+        }
+      }
+    }
+
+    respond(src, cbId, {
+      global_multiplier: parseFloat(econ.global_multiplier) || 1.0,
+      multiplier_override: overrideVal,
+      currency_name: econ.currency_name || "GCoin",
+      currency_symbol: econ.currency_symbol || "GC",
+      currency_icon: econ.currency_icon || "/assets/shared/icons/icon-gcoin.png",
+    });
+  } catch (err) {
+    console.log(`[CASINO-ECONOMY] getConfig ERRO: ${err.message}`);
+    respond(src, cbId, {
+      global_multiplier: 1.0,
+      multiplier_override: null,
+      currency_name: "GCoin",
+      currency_symbol: "GC",
+      currency_icon: "/assets/shared/icons/icon-gcoin.png",
+    });
+  }
+});
+
+console.log("[Blackout Casino] Economy handlers carregados — 3 endpoints (getConfigWithEconomy, setConfigWithEconomy, economy:getConfig)");
+
 })();

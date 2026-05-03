@@ -34,3 +34,16 @@ export { default as HelpPanel } from "./HelpPanel";
 export { default as HelpGameModal, HelpCard } from "./HelpGameModal";
 export type { HelpGameModalProps, HelpSection } from "./HelpGameModal";
 export { sha256, hmacSHA256, generateSecureSeed, createSeedPair } from "./crypto";
+
+// Economy — sistema de multiplier (Passo 2)
+export {
+  useEconomyConfig,
+  invalidateEconomyCache,
+  calculatePayout,
+  formatValue,
+  formatPayoutLabel,
+  formatFinalValue,
+  BasePlusActualLabel,
+  ECONOMY_TOOLTIPS,
+} from "./economy";
+export type { EconomyConfig, TooltipEntry, TooltipKey } from "./economy";

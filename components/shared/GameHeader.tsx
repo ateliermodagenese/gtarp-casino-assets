@@ -99,21 +99,7 @@ export default function GameHeader({
         // entao nao vazam pra fora do header.
       }}
     >
-      {/* ============== CAMADA 1: PNG ornamental como background ============== */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          inset: 0,
-          backgroundImage: `url("${HEADER_FRAME_PNG}")`,
-          backgroundSize: "100% 100%", // estica horizontalmente
-          backgroundRepeat: "no-repeat",
-          backgroundPosition: "center",
-          opacity: 0.85,
-          pointerEvents: "none",
-          zIndex: 0,
-        }}
-      />
+      {/* ============== CAMADA 1: glow CSS (sem PNG ornamental) ============== */}
 
       {/* ============== CAMADA 2: CSS particles douradas animadas ============== */}
       <div
