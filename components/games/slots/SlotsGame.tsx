@@ -2051,10 +2051,6 @@ export default function SlotsGame({
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-
-          </div>
-          
               </div>
             </div>
           </div>
@@ -2120,6 +2116,7 @@ export default function SlotsGame({
               </div>
             ))}
           </div>
+        {/* Fim do container principal */}
         </div>
         {/* Fim da area centralizada */}
         </div>
