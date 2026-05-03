@@ -1702,99 +1702,99 @@ export default function SlotsGame({
           minHeight: 0,
         }}
       >
-        {/* Header removido — GameHeader shared ja exibe tudo */}
-
-        {/* Area da cabine — centralizada no espaco disponivel */}
+        {/* Area central - video slot com frame premium */}
         <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minHeight: 0, padding: "clamp(2px, 0.4vw, 6px)" }}>
 
-        {/* CABINE VIDEO SLOT — tudo dentro */}
+        {/* CONTAINER PRINCIPAL DO VIDEO SLOT */}
         <div
           style={{
             position: "relative",
-            width: "clamp(340px, 68vw, 620px)",
-            maxWidth: "95%",
+            width: "clamp(380px, 72vw, 680px)",
+            maxWidth: "96%",
             display: "flex",
             flexDirection: "column",
-            borderRadius: 20,
-            border: "1.5px solid rgba(212,168,67,0.05)",
-            background: "linear-gradient(180deg, #1A1610 0%, #0F0D08 40%, #080704 100%)",
-            overflow: "visible",
-            boxShadow: "0 0 40px rgba(0,0,0,0.8), 0 12px 40px rgba(0,0,0,0.6)",
+            alignItems: "center",
           }}
         >
-          {/* Placa "VIDEO SLOT" com luzes decorativas */}
-          <div
+          {/* Badge "VIDEO SLOT" refinado - acima do frame */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
             style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              padding: "clamp(8px, 1vw, 14px) 0 clamp(6px, 0.8vw, 10px) 0",
-              flexShrink: 0,
-              zIndex: 5,
+              marginBottom: "clamp(6px, 0.8vw, 10px)",
+              padding: "clamp(4px, 0.5vw, 8px) clamp(16px, 2.5vw, 32px)",
+              background: "linear-gradient(180deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.98) 100%)",
+              border: "1px solid rgba(212,168,67,0.3)",
+              borderRadius: 6,
+              boxShadow: "0 4px 16px rgba(0,0,0,0.5), inset 0 1px 0 rgba(212,168,67,0.1)",
             }}
           >
-            <div style={{ display: "flex", gap: "clamp(6px, 1vw, 12px)", marginBottom: "clamp(2px, 0.3vw, 4px)" }}>
-              {[0, 1, 2, 3, 4].map((i) => (
-                <motion.div
-                  key={i}
-                  animate={{ opacity: [0.3, 1, 0.3] }}
-                  transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.3 }}
-                  style={{ width: 5, height: 5, borderRadius: "50%", background: "#C9A84C", boxShadow: "0 0 6px rgba(212,168,67,0.1)" }}
-                />
-              ))}
-            </div>
-            <div
+            <span
               style={{
                 fontFamily: "'Cinzel', serif",
-                fontWeight: 900,
-                fontSize: "clamp(12px, 1.8vw, 20px)",
+                fontWeight: 700,
+                fontSize: "clamp(10px, 1.4vw, 16px)",
                 color: "#FFD700",
-                textShadow: "0 0 10px rgba(255,215,0,0.5), 0 0 25px rgba(255,215,0,0.15)",
+                textShadow: "0 0 8px rgba(255,215,0,0.4)",
                 letterSpacing: 3,
-                textAlign: "center",
                 textTransform: "uppercase",
-                padding: "clamp(3px, 0.4vw, 6px) clamp(12px, 2vw, 24px)",
-                background: "linear-gradient(180deg, rgba(212,168,67,0.1) 0%, rgba(212,168,67,0.03) 100%)",
-                border: "1px solid rgba(212,168,67,0.06)",
-                borderRadius: 6,
               }}
             >
               VIDEO SLOT
-            </div>
-          </div>
+            </span>
+          </motion.div>
 
-          {/* Area do Grid — dentro da cabine */}
+          {/* Frame principal com imagem premium */}
           <div
             style={{
-              flex: 1,
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "clamp(2px, 0.3vw, 4px) clamp(6px, 1vw, 14px)",
-              minHeight: 0,
-              overflow: "hidden",
               position: "relative",
-              zIndex: 5,
+              width: "100%",
+              aspectRatio: "1.45 / 1",
             }}
           >
-            {/* Grid window com sombra interna (profundidade como Classic) */}
-            <div style={{ position: "relative", width: "100%" }}>
+            {/* Frame image - moldura premium */}
+            <img
+              src="/images/slots/video/video-frame.png"
+              alt="Video Slot Frame"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "fill",
+                zIndex: 2,
+                pointerEvents: "none",
+                filter: "drop-shadow(0 8px 24px rgba(0,0,0,0.6))",
+              }}
+            />
+
+            {/* Area do Grid - dentro do frame */}
             <div
               style={{
-                position: "relative",
-                padding: "clamp(4px, 0.5vw, 8px)",
-                borderRadius: "12px",
-                background: "linear-gradient(180deg, #0A0A0A 0%, #060606 100%)",
-                width: "100%",
+                position: "absolute",
+                top: "6%",
+                left: "4%",
+                right: "4%",
+                bottom: "6%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                overflow: "hidden",
-                boxShadow: "inset 0 4px 14px rgba(0,0,0,0.7), inset 0 -4px 14px rgba(0,0,0,0.5), inset 4px 0 10px rgba(0,0,0,0.3), inset -4px 0 10px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.3)",
-                border: "1px solid rgba(212,168,67,0.05)",
+                zIndex: 1,
+                background: "linear-gradient(180deg, #080808 0%, #0A0A0A 50%, #080808 100%)",
+                borderRadius: 8,
               }}
             >
+              {/* Grid container interno */}
+              <div
+                style={{
+                  position: "relative",
+                  width: "96%",
+                  height: "94%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
             {/* Tumble Badge */}
             <AnimatePresence>
               {tumbleCount > 0 && (
@@ -2055,43 +2055,47 @@ export default function SlotsGame({
 
           </div>
           
+              </div>
+            </div>
+          </div>
+
           {/* Painel LED premium — CREDITO / APOSTA / GANHO / JACKPOT */}
           <div
             style={{
               display: "grid",
               gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-              gap: "2px",
-              padding: "clamp(3px, 0.4vw, 5px)",
-              margin: "clamp(8px, 1.2vw, 16px) clamp(8px, 1.2vw, 16px) clamp(6px, 0.8vw, 10px)",
-              background: "linear-gradient(180deg, rgba(212,168,67,0.12) 0%, rgba(212,168,67,0.06) 100%)",
-              border: "1px solid rgba(212,168,67,0.08)",
+              gap: "clamp(4px, 0.5vw, 8px)",
+              padding: "clamp(4px, 0.5vw, 6px)",
+              marginTop: "clamp(8px, 1vw, 14px)",
+              background: "linear-gradient(180deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.98) 100%)",
+              border: "1px solid rgba(212,168,67,0.25)",
               borderRadius: 10,
-              flexShrink: 0,
-              zIndex: 5,
-              boxShadow: "inset 0 1px 0 rgba(212,168,67,0.1), 0 2px 8px rgba(0,0,0,0.3)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.4), inset 0 1px 0 rgba(212,168,67,0.1)",
               width: "100%",
             }}
           >
             {[
               { label: lang === "br" ? "CRÉDITO" : "CREDIT", value: saldo.toLocaleString(lang === "br" ? "pt-BR" : "en-US"), color: "#C9A84C" },
               { label: lang === "br" ? "APOSTA" : "BET", value: String(anteBet ? Math.floor(bet * 1.25) : bet), color: "#C9A84C" },
-              { label: lang === "br" ? "GANHO" : "WIN", value: currentWin > 0 ? currentWin.toLocaleString(lang === "br" ? "pt-BR" : "en-US") : "--", color: currentWin > 0 ? "#C9A84C" : "#555" },
-              { label: "JACKPOT", value: jackpotPool.toLocaleString(lang === "br" ? "pt-BR" : "en-US"), color: "#C9A84C" },
+              { label: lang === "br" ? "GANHO" : "WIN", value: currentWin > 0 ? currentWin.toLocaleString(lang === "br" ? "pt-BR" : "en-US") : "--", color: currentWin > 0 ? "#FFD700" : "#444" },
+              { label: "JACKPOT", value: jackpotPool.toLocaleString(lang === "br" ? "pt-BR" : "en-US"), color: "#00C853" },
             ].map((item, i) => (
               <div key={i} style={{
                 textAlign: "center",
-                padding: "clamp(6px, 0.8vw, 10px) clamp(4px, 0.6vw, 8px)",
-                background: "linear-gradient(180deg, rgba(0,0,0,0.7) 0%, rgba(0,0,0,0.5) 100%)",
-                borderRadius: 6,
+                padding: "clamp(8px, 1vw, 12px) clamp(6px, 0.8vw, 10px)",
+                background: "linear-gradient(180deg, rgba(0,0,0,0.5) 0%, rgba(0,0,0,0.7) 100%)",
+                border: "1px solid rgba(212,168,67,0.15)",
+                borderRadius: 8,
+                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.3)",
               }} title={item.label === "JACKPOT" ? t("jackpotTooltip") : undefined}>
                 <div style={{
-                  fontFamily: "'Cinzel', serif",
-                  fontWeight: 700,
-                  fontSize: "clamp(8px, 0.85vw, 11px)",
-                  color: "rgba(212,168,67,0.1)",
+                  fontFamily: "'Inter', sans-serif",
+                  fontWeight: 600,
+                  fontSize: "clamp(7px, 0.75vw, 9px)",
+                  color: "rgba(212,168,67,0.5)",
                   textTransform: "uppercase",
                   letterSpacing: "1.5px",
-                  marginBottom: "clamp(2px, 0.3vw, 4px)",
+                  marginBottom: "clamp(3px, 0.4vw, 5px)",
                 }}>
                   {item.label}
                 </div>
@@ -2100,8 +2104,8 @@ export default function SlotsGame({
                   fontWeight: 700,
                   fontSize: "clamp(14px, 1.8vw, 22px)",
                   color: item.color,
-                  textShadow: item.color !== "#555"
-                    ? "0 0 8px rgba(212,168,67,0.08), 0 0 16px rgba(212,168,67,0.05)"
+                  textShadow: item.color !== "#444"
+                    ? `0 0 10px ${item.color}40`
                     : "none",
                   transition: "all 0.3s ease",
                   lineHeight: 1.1,
@@ -2117,167 +2121,116 @@ export default function SlotsGame({
             ))}
           </div>
         </div>
-
-          {/* MANIVELA — filho direto da cabine, fora do grid */}
-          <motion.div
-            onClick={handleSpin}
-            whileHover={!isSpinning && bet <= saldo ? { scale: 1.08 } : {}}
-            whileTap={!isSpinning && bet <= saldo ? { scale: 0.95 } : {}}
-            title={lang === "br" ? "Puxar alavanca para girar" : "Pull lever to spin"}
-            style={{
-              position: "absolute",
-              right: "clamp(-18px, -2.2vw, -24px)",
-              top: "30%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              cursor: isSpinning || bet > saldo ? "not-allowed" : "pointer",
-              zIndex: 10,
-              opacity: isSpinning ? 0.4 : 1,
-              transition: "opacity 0.3s ease",
-              outline: "none",
-              WebkitTapHighlightColor: "transparent",
-            }}
-          >
-            <motion.div
-              animate={{ y: isSpinning ? 35 : 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 15 }}
-              style={{
-                width: "clamp(20px, 2.8vw, 30px)",
-                height: "clamp(20px, 2.8vw, 30px)",
-                borderRadius: "50%",
-                background: "radial-gradient(circle at 35% 35%, #F6E27A, #C9A84C, #8B6914)",
-                boxShadow: "0 0 12px rgba(212,168,67,0.08), inset 0 -2px 4px rgba(0,0,0,0.3)",
-                marginBottom: 3,
-                zIndex: 2,
-              }}
-            />
-            <div
-              style={{
-                width: "clamp(8px, 1vw, 12px)",
-                height: "clamp(70px, 12vh, 110px)",
-                background: "linear-gradient(90deg, #8B6914, #C9A84C, #8B6914)",
-                borderRadius: 4,
-                boxShadow: "2px 0 6px rgba(0,0,0,0.4)",
-              }}
-            />
-            <div
-              style={{
-                width: "clamp(16px, 2vw, 22px)",
-                height: "clamp(6px, 0.8vw, 10px)",
-                background: "linear-gradient(180deg, #C9A84C, #8B6914)",
-                borderRadius: "0 0 4px 4px",
-              }}
-            />
-          </motion.div>
-
-        {/* Fim da cabine */}
-        </div>
         {/* Fim da area centralizada */}
         </div>
         
-        {/* Bet Controls Bar — FORA da cabine, padrao Classic */}
+        {/* Controls Bar Premium - estilo Blackout Casino */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            gap: "clamp(4px, 0.5vw, 8px)",
-            padding: "clamp(6px, 0.8vw, 12px) clamp(8px, 1.5vw, 16px)",
+            gap: "clamp(6px, 0.7vw, 10px)",
+            padding: "clamp(10px, 1.2vw, 16px) clamp(12px, 2vw, 20px)",
+            background: "linear-gradient(180deg, rgba(20,20,20,0.95) 0%, rgba(10,10,10,0.98) 100%)",
+            borderTop: "1px solid rgba(212,168,67,0.2)",
             flexShrink: 0,
             zIndex: 5,
             flexWrap: "wrap",
-            opacity: isSpinning ? 0.4 : 1,
+            opacity: isSpinning ? 0.5 : 1,
             pointerEvents: isSpinning ? "none" : "auto",
             transition: "opacity 0.3s ease",
           }}
         >
-          {/* Info Button */}
+          {/* Info Button - estilo premium */}
           <motion.button
             onClick={() => setShowPaytable(true)}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.08, borderColor: "rgba(212,168,67,0.4)" }}
+            whileTap={{ scale: 0.95 }}
             title={t("paytable")}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px)",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "6px",
+              width: "40px",
+              height: "40px",
+              padding: 0,
+              background: "linear-gradient(180deg, rgba(212,168,67,0.08) 0%, rgba(212,168,67,0.03) 100%)",
+              border: "1px solid rgba(212,168,67,0.25)",
+              borderRadius: "50%",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              transition: "all 0.2s ease",
             }}
           >
             <img
               src={ASSETS.iconInfo}
               alt="Info"
-              style={{ width: "20px", height: "20px", opacity: 0.7 }}
+              style={{ width: "18px", height: "18px", opacity: 0.8, filter: "brightness(1.2)" }}
             />
           </motion.button>
           
-          {/* History Button */}
+          {/* History Button - estilo premium */}
           <motion.button
             onClick={() => setShowHistory(true)}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.08, borderColor: "rgba(212,168,67,0.4)" }}
+            whileTap={{ scale: 0.95 }}
             title={t("history")}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px)",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "6px",
+              width: "40px",
+              height: "40px",
+              padding: 0,
+              background: "linear-gradient(180deg, rgba(212,168,67,0.08) 0%, rgba(212,168,67,0.03) 100%)",
+              border: "1px solid rgba(212,168,67,0.25)",
+              borderRadius: "50%",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              transition: "all 0.2s ease",
             }}
           >
             <img
               src={ASSETS.iconHistory}
               alt="History"
-              style={{ width: "20px", height: "20px", opacity: 0.7 }}
+              style={{ width: "18px", height: "18px", opacity: 0.8, filter: "brightness(1.2)" }}
             />
           </motion.button>
           
-          {/* Provably Fair Button */}
+          {/* Provably Fair Button - estilo premium */}
           <motion.button
             onClick={() => setShowProvablyFair(true)}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.08, borderColor: "rgba(212,168,67,0.4)" }}
+            whileTap={{ scale: 0.95 }}
             title={lang === "br" ? `Provably Fair (${nonce} spins)` : `Provably Fair (${nonce} spins)`}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px)",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "6px",
+              width: "40px",
+              height: "40px",
+              padding: 0,
+              background: "linear-gradient(180deg, rgba(212,168,67,0.08) 0%, rgba(212,168,67,0.03) 100%)",
+              border: "1px solid rgba(212,168,67,0.25)",
+              borderRadius: "50%",
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               position: "relative",
+              transition: "all 0.2s ease",
             }}
           >
             <img
               src={ASSETS.iconProvablyFair}
               alt="Provably Fair"
-              style={{ width: "20px", height: "20px", opacity: 0.7 }}
+              style={{ width: "18px", height: "18px", opacity: 0.8, filter: "brightness(1.2)" }}
             />
             {nonce > 0 && (
               <span style={{
                 position: "absolute",
-                top: "-4px",
-                right: "-4px",
+                top: "-3px",
+                right: "-3px",
                 minWidth: "16px",
                 height: "16px",
                 borderRadius: "8px",
-                background: nonce >= 50 ? "rgba(255,107,107,0.9)" : "rgba(212,168,67,0.85)",
+                background: nonce >= 50 ? "rgba(255,68,68,0.9)" : "rgba(212,168,67,0.9)",
                 color: "#fff",
                 fontSize: "9px",
                 fontWeight: 700,
@@ -2287,33 +2240,33 @@ export default function SlotsGame({
                 justifyContent: "center",
                 padding: "0 3px",
                 lineHeight: 1,
-                boxShadow: nonce >= 50 ? "0 0 6px rgba(255,107,107,0.4)" : "0 0 4px rgba(212,168,67,0.3)",
+                boxShadow: nonce >= 50 ? "0 0 8px rgba(255,68,68,0.5)" : "0 0 6px rgba(212,168,67,0.4)",
               }}>
                 {nonce > 99 ? "99+" : nonce}
               </span>
             )}
           </motion.button>
           
-          {/* Separator */}
-          <div style={{ width: "1px", height: "32px", background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
+          {/* Separator dourado */}
+          <div style={{ width: "1px", height: "28px", background: "rgba(212,168,67,0.2)", margin: "0 2px" }} />
           
-          {/* Bet Buttons */}
+          {/* MIN Button - estilo premium */}
           <motion.button
             onClick={() => handleBetChange("min")}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.05, borderColor: "rgba(212,168,67,0.5)" }}
             whileTap={{ scale: 0.95 }}
             disabled={isSpinning}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              minWidth: "40px",
+              minHeight: "40px",
+              padding: "clamp(4px, 0.5vw, 6px) clamp(10px, 1.2vw, 14px)",
+              background: "linear-gradient(180deg, rgba(212,168,67,0.1) 0%, rgba(212,168,67,0.05) 100%)",
+              border: "1px solid rgba(212,168,67,0.3)",
               borderRadius: "6px",
-              color: "#A8A8A8",
+              color: "#C9A84C",
               fontFamily: "'JetBrains Mono', monospace",
               fontWeight: 600,
-              fontSize: "clamp(10px, 1.2vw, 13px)",
+              fontSize: "clamp(9px, 1.1vw, 12px)",
               cursor: "pointer",
               transition: "all 0.2s ease",
             }}
@@ -2321,47 +2274,64 @@ export default function SlotsGame({
             MIN
           </motion.button>
           
+          {/* Botao - com imagem premium */}
           <motion.button
             onClick={() => handleBetChange("prev")}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             disabled={isSpinning}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "6px",
-              color: "#A8A8A8",
-              fontFamily: "'JetBrains Mono', monospace",
-              fontWeight: 600,
-              fontSize: "clamp(10px, 1.2vw, 13px)",
+              width: "40px",
+              height: "40px",
+              padding: 0,
+              background: "transparent",
+              border: "none",
               cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
-            −
-          </motion.button>
-          
-          {/* Bet Display */}
-          <div
-            style={{
-              padding: "clamp(4px, 0.5vw, 8px) clamp(12px, 1.5vw, 20px)",
-              background: "rgba(0,0,0,0.4)",
-              border: "1px solid rgba(212,168,67,0.1)",
-              borderRadius: "6px",
+              position: "relative",
               display: "flex",
               alignItems: "center",
-              gap: "clamp(4px, 0.5vw, 8px)",
+              justifyContent: "center",
+            }}
+          >
+            <img
+              src="/images/slots/video/button-small.png"
+              alt="-"
+              style={{ 
+                width: "100%", 
+                height: "100%", 
+                objectFit: "contain",
+                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))",
+              }}
+            />
+            <span style={{
+              position: "absolute",
+              color: "#FFD700",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 700,
+              fontSize: "18px",
+              textShadow: "0 0 6px rgba(255,215,0,0.4)",
+            }}>-</span>
+          </motion.button>
+          
+          {/* Bet Display - estilo premium */}
+          <div
+            style={{
+              padding: "clamp(6px, 0.7vw, 10px) clamp(16px, 2vw, 24px)",
+              background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.8) 100%)",
+              border: "1px solid rgba(212,168,67,0.35)",
+              borderRadius: "8px",
+              display: "flex",
+              alignItems: "center",
+              gap: "clamp(6px, 0.7vw, 10px)",
+              boxShadow: "inset 0 2px 4px rgba(0,0,0,0.3)",
             }}
           >
             <span
               style={{
-                fontFamily: "'Cinzel', serif",
+                fontFamily: "'Inter', sans-serif",
                 fontWeight: 600,
-                fontSize: "clamp(8px, 1vw, 11px)",
-                color: "#A8A8A8",
+                fontSize: "clamp(8px, 0.9vw, 10px)",
+                color: "rgba(212,168,67,0.6)",
                 textTransform: "uppercase",
                 letterSpacing: "1px",
               }}
@@ -2372,54 +2342,71 @@ export default function SlotsGame({
               style={{
                 fontFamily: "'JetBrains Mono', monospace",
                 fontWeight: 700,
-                fontSize: "clamp(12px, 1.4vw, 16px)",
-                color: "#C9A84C",
-                textShadow: "0 0 6px rgba(212,168,67,0.06)",
+                fontSize: "clamp(13px, 1.5vw, 17px)",
+                color: "#FFD700",
+                textShadow: "0 0 8px rgba(255,215,0,0.4)",
               }}
             >
               {bet} {cc.symbol}
             </span>
           </div>
           
+          {/* Botao + com imagem premium */}
           <motion.button
             onClick={() => handleBetChange("next")}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.1 }}
             whileTap={{ scale: 0.95 }}
             disabled={isSpinning}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
-              borderRadius: "6px",
-              color: "#A8A8A8",
-              fontFamily: "'JetBrains Mono', monospace",
-              fontWeight: 600,
-              fontSize: "clamp(10px, 1.2vw, 13px)",
+              width: "40px",
+              height: "40px",
+              padding: 0,
+              background: "transparent",
+              border: "none",
               cursor: "pointer",
-              transition: "all 0.2s ease",
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            +
+            <img
+              src="/images/slots/video/button-small.png"
+              alt="+"
+              style={{ 
+                width: "100%", 
+                height: "100%", 
+                objectFit: "contain",
+                filter: "drop-shadow(0 2px 4px rgba(0,0,0,0.4))",
+              }}
+            />
+            <span style={{
+              position: "absolute",
+              color: "#FFD700",
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 700,
+              fontSize: "18px",
+              textShadow: "0 0 6px rgba(255,215,0,0.4)",
+            }}>+</span>
           </motion.button>
           
+          {/* MAX Button - estilo premium */}
           <motion.button
             onClick={() => handleBetChange("max")}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.05, borderColor: "rgba(212,168,67,0.5)" }}
             whileTap={{ scale: 0.95 }}
             disabled={isSpinning}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-              background: "rgba(255,255,255,0.05)",
-              border: "1px solid rgba(255,255,255,0.1)",
+              minWidth: "40px",
+              minHeight: "40px",
+              padding: "clamp(4px, 0.5vw, 6px) clamp(10px, 1.2vw, 14px)",
+              background: "linear-gradient(180deg, rgba(212,168,67,0.1) 0%, rgba(212,168,67,0.05) 100%)",
+              border: "1px solid rgba(212,168,67,0.3)",
               borderRadius: "6px",
-              color: "#A8A8A8",
+              color: "#C9A84C",
               fontFamily: "'JetBrains Mono', monospace",
               fontWeight: 600,
-              fontSize: "clamp(10px, 1.2vw, 13px)",
+              fontSize: "clamp(9px, 1.1vw, 12px)",
               cursor: "pointer",
               transition: "all 0.2s ease",
             }}
@@ -2427,98 +2414,107 @@ export default function SlotsGame({
             MAX
           </motion.button>
           
-          {/* Separator */}
-          <div style={{ width: "1px", height: "32px", background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
+          {/* Separator dourado */}
+          <div style={{ width: "1px", height: "28px", background: "rgba(212,168,67,0.2)", margin: "0 2px" }} />
           
-          {/* Ante Toggle */}
+          {/* Ante Toggle - estilo premium */}
           <motion.button
             onClick={() => setAnteBet(!anteBet)}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.05, borderColor: anteBet ? "rgba(212,168,67,0.6)" : "rgba(212,168,67,0.4)" }}
             whileTap={{ scale: 0.95 }}
             title={t("anteTooltip")}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-              background: anteBet ? "rgba(212,168,67,0.05)" : "rgba(0,0,0,0.3)",
-              border: anteBet ? "1px solid rgba(212,168,67,0.1)" : "1px solid rgba(255,255,255,0.05)",
+              minWidth: "40px",
+              minHeight: "40px",
+              padding: "clamp(4px, 0.5vw, 6px) clamp(10px, 1.2vw, 14px)",
+              background: anteBet 
+                ? "linear-gradient(180deg, rgba(212,168,67,0.2) 0%, rgba(212,168,67,0.1) 100%)" 
+                : "linear-gradient(180deg, rgba(212,168,67,0.08) 0%, rgba(212,168,67,0.03) 100%)",
+              border: anteBet ? "1px solid rgba(212,168,67,0.5)" : "1px solid rgba(212,168,67,0.25)",
               borderRadius: "6px",
-              color: anteBet ? "#C9A84C" : "#666666",
-              fontFamily: "'Cinzel', serif",
-              fontWeight: 700,
-              fontSize: "clamp(10px, 1.2vw, 13px)",
+              color: anteBet ? "#FFD700" : "#888",
+              fontFamily: "'Inter', sans-serif",
+              fontWeight: 600,
+              fontSize: "clamp(9px, 1.1vw, 12px)",
               textTransform: "uppercase",
               letterSpacing: "1px",
               cursor: "pointer",
               transition: "all 0.2s ease",
+              boxShadow: anteBet ? "0 0 8px rgba(212,168,67,0.2)" : "none",
             }}
           >
             {t("ante")}
           </motion.button>
           
-          {/* Spin Button */}
+          {/* SPIN Button Premium - grande e centralizado */}
           <motion.button
             onClick={handleSpin}
             disabled={isSpinning || bet > saldo}
-            whileHover={{ scale: 1.08 }}
-            whileTap={{ scale: 0.92 }}
+            whileHover={{ scale: 1.08, boxShadow: isFS ? "0 0 30px rgba(255,215,0,0.6)" : "0 0 25px rgba(0,200,83,0.5)" }}
+            whileTap={{ scale: 0.95 }}
             title={t("spinTooltip")}
             style={{
-              width: "56px",
-              height: "56px",
+              width: "58px",
+              height: "58px",
               borderRadius: "50%",
               background: isFS
-                ? "linear-gradient(180deg, #FFD700 0%, #8B6914 100%)"
-                : "linear-gradient(180deg, #00C853 0%, #004D25 100%)",
+                ? "linear-gradient(180deg, #FFD700 0%, #C9A84C 50%, #8B6914 100%)"
+                : "linear-gradient(180deg, #00C853 0%, #00A844 50%, #007A32 100%)",
               border: isFS
-                ? "2px solid rgba(255,215,0,0.6)"
-                : "2px solid rgba(212,168,67,0.06)",
+                ? "3px solid rgba(255,215,0,0.7)"
+                : "3px solid rgba(0,200,83,0.5)",
               color: isFS ? "#0A0A0A" : "#FFFFFF",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               cursor: isSpinning || bet > saldo ? "not-allowed" : "pointer",
               boxShadow: isFS
-                ? "0 0 20px rgba(255,215,0,0.4)"
-                : "0 0 15px rgba(212,168,67,0.1)",
-              fontSize: "20px",
-              fontWeight: 900,
+                ? "0 0 20px rgba(255,215,0,0.5), inset 0 2px 0 rgba(255,255,255,0.3)"
+                : "0 0 15px rgba(0,200,83,0.4), inset 0 2px 0 rgba(255,255,255,0.2)",
+              fontFamily: "'Inter', sans-serif",
+              fontSize: "12px",
+              fontWeight: 800,
+              letterSpacing: "1px",
               flexShrink: 0,
-              opacity: isSpinning || bet > saldo ? 0.4 : 1,
+              opacity: isSpinning || bet > saldo ? 0.5 : 1,
               transition: "all 0.2s ease",
             }}
           >
-            ▶
+            SPIN
           </motion.button>
 
-          {/* G3: Badge saldo insuficiente + depositar */}
+          {/* G3: Badge saldo insuficiente */}
           {!isSpinning && bet > saldo && onDeposit && (
             <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               onClick={onDeposit}
-              whileHover={{ borderColor: "rgba(212,168,67,0.5)", background: "rgba(212,168,67,0.12)" }}
+              whileHover={{ borderColor: "rgba(255,68,68,0.6)" }}
               whileTap={{ scale: 0.95 }}
               style={{
-                padding: "4px 10px",
+                padding: "6px 12px",
                 borderRadius: "6px",
-                background: "rgba(255,107,107,0.08)",
-                border: "1px solid rgba(255,107,107,0.25)",
+                background: "linear-gradient(180deg, rgba(255,68,68,0.15) 0%, rgba(255,68,68,0.08) 100%)",
+                border: "1px solid rgba(255,68,68,0.4)",
                 color: "#FF6B6B",
-                fontSize: "clamp(8px, 0.75vw, 10px)",
+                fontSize: "clamp(8px, 0.8vw, 10px)",
                 fontFamily: "'Inter', sans-serif",
                 fontWeight: 600,
                 cursor: "pointer",
                 outline: "none",
                 whiteSpace: "nowrap",
                 transition: "all 0.2s",
+                textShadow: "0 0 6px rgba(255,68,68,0.3)",
               }}
             >
-              {lang === "br" ? "Saldo baixo — Depositar" : "Low balance — Deposit"}
+              {lang === "br" ? "Saldo baixo" : "Low balance"}
             </motion.button>
           )}
           
-          {/* Auto Toggle — H1: abre config ou para */}
+          {/* Separator dourado */}
+          <div style={{ width: "1px", height: "28px", background: "rgba(212,168,67,0.2)", margin: "0 2px" }} />
+          
+          {/* Auto Toggle - estilo premium */}
           <motion.button
             onClick={() => {
               if (autoPlay > 0) {
@@ -2527,25 +2523,28 @@ export default function SlotsGame({
                 setShowAutoPlayConfig(!showAutoPlayConfig);
               }
             }}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.05, borderColor: autoPlay > 0 ? "rgba(212,168,67,0.6)" : "rgba(212,168,67,0.4)" }}
             whileTap={{ scale: 0.95 }}
             title={autoPlay > 0
               ? (lang === "br" ? "Parar auto-play" : "Stop auto-play")
               : (lang === "br" ? "Configurar auto-play" : "Configure auto-play")}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-              background: autoPlay > 0 ? "rgba(212,168,67,0.1)" : "rgba(255,255,255,0.05)",
-              border: autoPlay > 0 ? "1px solid rgba(212,168,67,0.1)" : "1px solid rgba(255,255,255,0.1)",
+              minWidth: "40px",
+              minHeight: "40px",
+              padding: "clamp(4px, 0.5vw, 6px) clamp(10px, 1.2vw, 14px)",
+              background: autoPlay > 0 
+                ? "linear-gradient(180deg, rgba(212,168,67,0.2) 0%, rgba(212,168,67,0.1) 100%)" 
+                : "linear-gradient(180deg, rgba(212,168,67,0.08) 0%, rgba(212,168,67,0.03) 100%)",
+              border: autoPlay > 0 ? "1px solid rgba(212,168,67,0.5)" : "1px solid rgba(212,168,67,0.25)",
               borderRadius: "6px",
-              color: autoPlay > 0 ? "#C9A84C" : "#A8A8A8",
-              fontFamily: "'JetBrains Mono', monospace",
+              color: autoPlay > 0 ? "#FFD700" : "#888",
+              fontFamily: "'Inter', sans-serif",
               fontWeight: 600,
-              fontSize: "clamp(10px, 1.2vw, 13px)",
+              fontSize: "clamp(9px, 1.1vw, 12px)",
               cursor: "pointer",
               position: "relative",
               transition: "all 0.2s ease",
+              boxShadow: autoPlay > 0 ? "0 0 8px rgba(212,168,67,0.2)" : "none",
             }}
           >
             {autoPlay > 0 ? (lang === "br" ? "STOP" : "STOP") : t("auto")}
@@ -2709,43 +2708,43 @@ export default function SlotsGame({
             {t("turbo")}
             {turboMode && (
               <span style={{
-                position: "absolute", top: "-5px", right: "-5px",
-                padding: "1px 4px", borderRadius: "3px",
-                background: "rgba(255,215,0,0.2)",
-                border: "1px solid rgba(255,215,0,0.4)",
+                position: "absolute", top: "-4px", right: "-4px",
+                padding: "2px 5px", borderRadius: "4px",
+                background: "linear-gradient(180deg, rgba(255,215,0,0.3) 0%, rgba(255,215,0,0.15) 100%)",
+                border: "1px solid rgba(255,215,0,0.5)",
                 fontSize: "7px", fontWeight: 800, color: "#FFD700",
                 fontFamily: "'Inter', sans-serif", letterSpacing: "0.5px",
                 animation: "slotsTurboPulse 1.5s ease-in-out infinite",
+                boxShadow: "0 0 6px rgba(255,215,0,0.3)",
               }}>
                 ON
               </span>
             )}
           </motion.button>
           
-          {/* Separator */}
-          <div style={{ width: "1px", height: "32px", background: "rgba(255,255,255,0.1)", margin: "0 4px" }} />
-          
-          {/* Bonus Button */}
+          {/* BONUS Button - destaque premium dourado */}
           <motion.button
             onClick={() => setShowBuyBonus(true)}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.05, boxShadow: "0 0 15px rgba(212,168,67,0.4)" }}
             whileTap={{ scale: 0.95 }}
             title={t("buyFreeSpins")}
             style={{
-              minWidth: "44px",
-              minHeight: "44px",
-              padding: "clamp(4px, 0.5vw, 6px) clamp(10px, 1.2vw, 16px)",
-              background: "linear-gradient(180deg, rgba(212,168,67,0.06) 0%, rgba(139,105,20,0.2) 100%)",
-              border: "1px solid rgba(212,168,67,0.06)",
+              minWidth: "40px",
+              minHeight: "40px",
+              padding: "clamp(6px, 0.7vw, 10px) clamp(14px, 1.8vw, 20px)",
+              background: "linear-gradient(180deg, rgba(212,168,67,0.25) 0%, rgba(139,105,20,0.35) 100%)",
+              border: "1px solid rgba(212,168,67,0.5)",
               borderRadius: "6px",
-              color: "#C9A84C",
+              color: "#FFD700",
               fontFamily: "'Cinzel', serif",
               fontWeight: 700,
-              fontSize: "clamp(9px, 1.1vw, 12px)",
+              fontSize: "clamp(10px, 1.2vw, 13px)",
               textTransform: "uppercase",
-              letterSpacing: "1px",
+              letterSpacing: "1.5px",
               cursor: "pointer",
               transition: "all 0.2s ease",
+              boxShadow: "0 0 10px rgba(212,168,67,0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+              textShadow: "0 0 6px rgba(255,215,0,0.4)",
             }}
           >
             {t("bonus")}
