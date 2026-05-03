@@ -3469,132 +3469,75 @@ export default function SlotsGame({
         minHeight: 0,
       }}
     >
-      {/* Header removido — GameHeader shared ja exibe tudo */}
-
-      {/* Area central - cabine */}
+      {/* Area central - maquina fisica com assets reais */}
       <div
         style={{
           flex: 1,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "clamp(8px, 1vw, 16px) clamp(32px, 5vw, 48px)",
+          padding: "clamp(4px, 0.5vw, 8px) clamp(16px, 3vw, 32px)",
           minHeight: 0,
           overflow: "hidden",
         }}
       >
-        {/* CABINE METALICA */}
+        {/* MAQUINA COM MOLDURA REAL */}
         <motion.div
-          animate={classicFeedback === "win" ? { x: [0, -3, 3, -2, 2, 0] } : { x: 0 }}
-          transition={classicFeedback === "win" ? { duration: 0.3, ease: "easeInOut" } : { duration: 0.1 }}
+          animate={classicFeedback === "win" ? { x: [0, -4, 4, -3, 3, 0] } : { x: 0 }}
+          transition={classicFeedback === "win" ? { duration: 0.4, ease: "easeInOut" } : { duration: 0.1 }}
           style={{
-            width: "clamp(260px, 45vw, 440px)",
-            maxHeight: "clamp(280px, 52vh, 480px)",
-            background: "linear-gradient(180deg, #2A2215 0%, #1A1610 40%, #0D0B07 100%)",
-            border: "3px solid #C9A84C",
-            borderRadius: 24,
-            boxShadow: "0 0 40px rgba(212,168,67,0.1), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(212,168,67,0.06), inset 0 -2px 0 rgba(0,0,0,0.4)",
-            padding: "clamp(8px, 1.5vw, 18px)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
             position: "relative",
-            overflow: "visible",
+            width: "clamp(320px, 52vw, 520px)",
+            aspectRatio: "1.05 / 1",
+            maxHeight: "clamp(320px, 58vh, 520px)",
           }}
         >
+          {/* Moldura da maquina - imagem real */}
+          <img
+            src="/images/slots/classic/machine-frame.png"
+            alt="Slot Machine"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              zIndex: 2,
+              pointerEvents: "none",
+              filter: "drop-shadow(0 8px 32px rgba(0,0,0,0.6))",
+            }}
+          />
+
           {/* D5 — Canvas overlay para gold particles */}
           <canvas
             ref={particleCanvasRef}
-            style={{ position: "absolute", inset: 0, zIndex: 15, pointerEvents: "none", borderRadius: 24 }}
+            style={{ position: "absolute", inset: 0, zIndex: 25, pointerEvents: "none" }}
           />
-          {/* PLACA "CLASSIC SLOTS" com luzes */}
+
+          {/* Container dos 3 REELS - posicionado nas janelas da moldura */}
           <div
             style={{
+              position: "absolute",
+              top: "17%",
+              left: "12%",
+              right: "12%",
+              height: "52%",
               display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              marginBottom: "clamp(8px, 1.5vw, 16px)",
+              gap: "2%",
+              zIndex: 1,
+              padding: "1.5% 2%",
             }}
           >
-            {/* Luzes decorativas */}
-            <div
-              style={{
-                display: "flex",
-                gap: "clamp(8px, 1.2vw, 14px)",
-                marginBottom: "clamp(4px, 0.5vw, 6px)",
-              }}
-            >
-              {[0, 1, 2, 3, 4].map((i) => (
-                <motion.div
-                  key={i}
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{ duration: classicFeedback === "win" ? 0.4 : 1.5, repeat: Infinity, delay: i * (classicFeedback === "win" ? 0.08 : 0.3) }}
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "#FFD700",
-                    boxShadow: "0 0 8px rgba(255,215,0,0.6)",
-                  }}
-                />
-              ))}
-            </div>
-            <div
-              style={{
-                fontFamily: "'Cinzel', serif",
-                fontWeight: 900,
-                fontSize: "clamp(14px, 2.2vw, 22px)",
-                color: "#FFD700",
-                textShadow: "0 0 12px rgba(255,215,0,0.6), 0 0 30px rgba(255,215,0,0.2)",
-                letterSpacing: 4,
-                textAlign: "center",
-                padding: "clamp(6px, 1vw, 12px) clamp(16px, 3vw, 32px)",
-                background: "linear-gradient(180deg, rgba(212,168,67,0.05) 0%, rgba(212,168,67,0.05) 100%)",
-                border: "1px solid rgba(212,168,67,0.1)",
-                borderRadius: 8,
-              }}
-            >
-              CLASSIC SLOTS
-            </div>
-          </div>
-
-          {/* JANELA DOS REELS com profundidade */}
-          <div
-            style={{
-              display: "flex",
-              gap: "clamp(4px, 0.6vw, 8px)",
-              background: "linear-gradient(180deg, #050505 0%, #0A0A0A 50%, #050505 100%)",
-              border: "2px solid rgba(212,168,67,0.06)",
-              borderRadius: 12,
-              padding: "clamp(4px, 0.5vw, 8px)",
-              boxShadow: "inset 0 8px 20px rgba(0,0,0,0.8), inset 0 -8px 20px rgba(0,0,0,0.8), 0 0 20px rgba(212,168,67,0.05)",
-              position: "relative",
-            }}
-          >
-            {/* Linha central decorativa (sutil) */}
-            <div
-              style={{
-                position: "absolute",
-                left: 0,
-                right: 0,
-                top: "50%",
-                height: 1,
-                background: "rgba(212,168,67,0.04)",
-                zIndex: 3,
-                pointerEvents: "none",
-              }}
-            />
-
-            {/* 3 REELS */}
             {[0, 1, 2].map((reelIndex) => (
               <div
                 key={reelIndex}
                 style={{
-                  width: "clamp(60px, 10vw, 90px)",
-                  height: "clamp(180px, 28vh, 270px)",
+                  flex: 1,
+                  height: "100%",
                   overflow: "hidden",
                   position: "relative",
-                  borderLeft: reelIndex > 0 ? "1px solid rgba(212,168,67,0.1)" : "none",
+                  background: "linear-gradient(180deg, #0a0806 0%, #151210 50%, #0a0806 100%)",
+                  borderRadius: 4,
                 }}
               >
                 {/* Sombra topo (profundidade) */}
@@ -3604,8 +3547,8 @@ export default function SlotsGame({
                     top: 0,
                     left: 0,
                     right: 0,
-                    height: "30%",
-                    background: "linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 100%)",
+                    height: "25%",
+                    background: "linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 100%)",
                     zIndex: 3,
                     pointerEvents: "none",
                   }}
@@ -3617,8 +3560,8 @@ export default function SlotsGame({
                     bottom: 0,
                     left: 0,
                     right: 0,
-                    height: "30%",
-                    background: "linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%)",
+                    height: "25%",
+                    background: "linear-gradient(0deg, rgba(0,0,0,0.85) 0%, transparent 100%)",
                     zIndex: 3,
                     pointerEvents: "none",
                   }}
@@ -3639,6 +3582,7 @@ export default function SlotsGame({
                   style={{
                     display: "flex",
                     flexDirection: "column",
+                    height: "100%",
                   }}
                 >
                   {(classicSpinning[reelIndex]
@@ -3653,33 +3597,34 @@ export default function SlotsGame({
                     const isWinCell = !classicSpinning[reelIndex] && !!winCount;
                     const is3of = winCount === 3;
                     return (
-                    <div
-                      key={`${reelIndex}-${symbolIndex}`}
-                      style={{
-                        width: "100%",
-                        height: "clamp(60px, 9.3vh, 90px)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        borderRadius: 6,
-                        background: isWinCell ? (is3of ? "rgba(212,168,67,0.18)" : "rgba(212,168,67,0.08)") : "transparent",
-                        border: isWinCell ? (is3of ? "1.5px solid rgba(212,168,67,0.85)" : "1.5px solid rgba(212,168,67,0.45)") : "1.5px solid transparent",
-                        boxShadow: isWinCell ? (is3of ? "0 0 18px rgba(212,168,67,0.5), inset 0 0 10px rgba(212,168,67,0.15)" : "0 0 8px rgba(212,168,67,0.2)") : "none",
-                        transition: "all 0.2s ease",
-                      }}
-                    >
-                      <img
-                        src={symbol.path}
-                        alt={symbol.id}
+                      <div
+                        key={`${reelIndex}-${symbolIndex}`}
                         style={{
-                          width: "75%",
-                          height: "75%",
-                          objectFit: "contain",
-                          filter: isWinCell ? (is3of ? "drop-shadow(0 0 8px rgba(255,215,0,0.7))" : "drop-shadow(0 0 4px rgba(255,215,0,0.35))") : "none",
-                          transition: "filter 0.2s ease",
+                          width: "100%",
+                          height: "33.33%",
+                          minHeight: "clamp(50px, 8vh, 80px)",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: 4,
+                          background: isWinCell ? (is3of ? "rgba(212,168,67,0.2)" : "rgba(212,168,67,0.1)") : "transparent",
+                          border: isWinCell ? (is3of ? "2px solid rgba(212,168,67,0.9)" : "2px solid rgba(212,168,67,0.5)") : "2px solid transparent",
+                          boxShadow: isWinCell ? (is3of ? "0 0 20px rgba(212,168,67,0.6), inset 0 0 12px rgba(212,168,67,0.2)" : "0 0 10px rgba(212,168,67,0.3)") : "none",
+                          transition: "all 0.2s ease",
                         }}
-                      />
-                    </div>
+                      >
+                        <img
+                          src={symbol.path}
+                          alt={symbol.id}
+                          style={{
+                            width: "70%",
+                            height: "70%",
+                            objectFit: "contain",
+                            filter: isWinCell ? (is3of ? "drop-shadow(0 0 10px rgba(255,215,0,0.8))" : "drop-shadow(0 0 5px rgba(255,215,0,0.4))") : "none",
+                            transition: "filter 0.2s ease",
+                          }}
+                        />
+                      </div>
                     );
                   })}
                 </motion.div>
@@ -3687,57 +3632,88 @@ export default function SlotsGame({
             ))}
           </div>
 
-          {/* MANIVELA — encaixada na borda da cabine */}
+          {/* Vidro overlay sobre os rolos */}
+          <div
+            style={{
+              position: "absolute",
+              top: "16%",
+              left: "11%",
+              right: "11%",
+              height: "54%",
+              zIndex: 4,
+              pointerEvents: "none",
+              background: "linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 30%, transparent 70%, rgba(255,255,255,0.02) 100%)",
+              borderRadius: 8,
+            }}
+          />
+
+          {/* MANIVELA REAL - posicionada a direita */}
           <motion.div
             onClick={handleLeverPull}
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.03 }}
             title={t("spinTooltip")}
             style={{
               position: "absolute",
-              right: "clamp(-18px, -2.2vw, -24px)",
-              top: "35%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
+              right: "-12%",
+              top: "22%",
+              width: "clamp(80px, 14vw, 130px)",
+              height: "clamp(120px, 20vw, 180px)",
               cursor: classicSpinning.some(s => s) ? "not-allowed" : "pointer",
               zIndex: 10,
-              opacity: classicSpinning.some(s => s) ? 0.5 : 1,
+              opacity: classicSpinning.some(s => s) ? 0.6 : 1,
+              transition: "opacity 0.3s ease",
             }}
           >
-            {/* Bola topo */}
-            <motion.div
-              animate={{ y: isLeverPulled ? 40 : 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 15 }}
-              style={{
-                width: "clamp(20px, 3vw, 28px)",
-                height: "clamp(20px, 3vw, 28px)",
-                borderRadius: "50%",
-                background: "radial-gradient(circle at 35% 35%, #F6E27A, #C9A84C, #8B6914)",
-                boxShadow: "0 0 10px rgba(212,168,67,0.06), inset 0 -2px 4px rgba(0,0,0,0.3)",
-                marginBottom: 4,
-                zIndex: 2,
+            <motion.img
+              src="/images/slots/classic/lever.png"
+              alt="Lever"
+              animate={{ 
+                rotate: isLeverPulled ? 35 : 0,
               }}
-            />
-            {/* Barra vertical */}
-            <div
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
               style={{
-                width: "clamp(8px, 1vw, 12px)",
-                height: "clamp(80px, 12vh, 120px)",
-                background: "linear-gradient(90deg, #8B6914, #C9A84C, #8B6914)",
-                borderRadius: 4,
-                boxShadow: "2px 0 6px rgba(0,0,0,0.4)",
-              }}
-            />
-            {/* Base */}
-            <div
-              style={{
-                width: "clamp(16px, 2vw, 22px)",
-                height: "clamp(6px, 0.8vw, 10px)",
-                background: "linear-gradient(180deg, #C9A84C, #8B6914)",
-                borderRadius: "0 0 4px 4px",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                transformOrigin: "50% 85%",
+                filter: "drop-shadow(4px 4px 8px rgba(0,0,0,0.5))",
               }}
             />
           </motion.div>
+
+          {/* Display LED na area verde da moldura */}
+          <div
+            style={{
+              position: "absolute",
+              bottom: "8%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: "28%",
+              height: "7%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              zIndex: 5,
+            }}
+          >
+            <div
+              style={{
+                fontFamily: "'JetBrains Mono', monospace",
+                fontWeight: 700,
+                fontSize: "clamp(10px, 1.4vw, 16px)",
+                color: currentWin > 0 ? "#FFD700" : "#00FF88",
+                textShadow: currentWin > 0 
+                  ? "0 0 10px rgba(255,215,0,0.8), 0 0 20px rgba(255,215,0,0.4)"
+                  : "0 0 8px rgba(0,255,136,0.6)",
+                letterSpacing: 2,
+                textTransform: "uppercase",
+              }}
+            >
+              {currentWin > 0 
+                ? `WIN ${currentWin.toLocaleString(lang === "br" ? "pt-BR" : "en-US")}`
+                : `BET ${bet}`}
+            </div>
+          </div>
 
           {/* Win/Lose feedback — estilo arcade stamp */}
           <AnimatePresence>
@@ -3753,25 +3729,25 @@ export default function SlotsGame({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  zIndex: 20,
+                  zIndex: 30,
                   pointerEvents: "none",
                   background: classicFeedback === "win"
-                    ? "radial-gradient(ellipse at center, rgba(212,168,67,0.1) 0%, transparent 60%)"
-                    : "radial-gradient(ellipse at center, rgba(255,68,68,0.08) 0%, transparent 60%)",
+                    ? "radial-gradient(ellipse at center, rgba(255,215,0,0.15) 0%, transparent 60%)"
+                    : "radial-gradient(ellipse at center, rgba(255,68,68,0.1) 0%, transparent 60%)",
                 }}
               >
                 <span
                   style={{
                     fontFamily: "'Cinzel', serif",
                     fontWeight: 900,
-                    fontSize: "clamp(28px, 6vw, 52px)",
+                    fontSize: "clamp(32px, 7vw, 60px)",
                     textTransform: "uppercase",
                     letterSpacing: "clamp(4px, 1vw, 8px)",
-                    color: classicFeedback === "win" ? "#C9A84C" : "#FF4444",
+                    color: classicFeedback === "win" ? "#FFD700" : "#FF4444",
                     textShadow: classicFeedback === "win"
-                      ? "0 0 30px rgba(212,168,67,0.06), 0 0 60px rgba(212,168,67,0.06), 0 0 100px rgba(212,168,67,0.06), 0 4px 12px rgba(0,0,0,0.9)"
-                      : "0 0 30px rgba(255,68,68,0.6), 0 0 60px rgba(255,68,68,0.3), 0 0 100px rgba(255,68,68,0.15), 0 4px 12px rgba(0,0,0,0.9)",
-                    WebkitTextStroke: "1px rgba(0,0,0,0.3)",
+                      ? "0 0 30px rgba(255,215,0,0.8), 0 0 60px rgba(255,215,0,0.5), 0 0 100px rgba(255,215,0,0.3), 0 4px 12px rgba(0,0,0,0.9)"
+                      : "0 0 30px rgba(255,68,68,0.7), 0 0 60px rgba(255,68,68,0.4), 0 0 100px rgba(255,68,68,0.2), 0 4px 12px rgba(0,0,0,0.9)",
+                    WebkitTextStroke: "1px rgba(0,0,0,0.4)",
                   }}
                 >
                   {classicFeedback === "win"
@@ -3781,138 +3757,84 @@ export default function SlotsGame({
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* PAINEL LED INFERIOR */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-around",
-              width: "100%",
-              marginTop: "clamp(8px, 1.5vw, 16px)",
-              padding: "clamp(6px, 1vw, 12px)",
-              background: "rgba(0,0,0,0.6)",
-              border: "1px solid rgba(212,168,67,0.05)",
-              borderRadius: 8,
-            }}
-          >
-            {/* Credito */}
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "clamp(8px, 1vw, 11px)",
-                  color: "rgba(212,168,67,0.1)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                  marginBottom: 2,
-                }}
-              >
-                {lang === "br" ? "CREDITO" : "CREDIT"}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 700,
-                  fontSize: "clamp(12px, 1.6vw, 18px)",
-                  color: "#C9A84C",
-                  textShadow: "0 0 8px rgba(212,168,67,0.06)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {saldo.toLocaleString(lang === "br" ? "pt-BR" : "en-US")}
-              </div>
-            </div>
-            {/* Aposta */}
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "clamp(8px, 1vw, 11px)",
-                  color: "rgba(212,168,67,0.1)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                  marginBottom: 2,
-                }}
-              >
-                {t("bet")}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 700,
-                  fontSize: "clamp(12px, 1.6vw, 18px)",
-                  color: "#C9A84C",
-                  textShadow: "0 0 8px rgba(212,168,67,0.1)",
-                }}
-              >
-                {bet}
-              </div>
-            </div>
-            {/* Ganho */}
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "clamp(8px, 1vw, 11px)",
-                  color: "rgba(212,168,67,0.1)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                  marginBottom: 2,
-                }}
-              >
-                {t("win")}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 700,
-                  fontSize: "clamp(12px, 1.6vw, 18px)",
-                  color: currentWin > 0 ? "#C9A84C" : "#666666",
-                  textShadow: currentWin > 0 ? "0 0 10px rgba(212,168,67,0.08)" : "none",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {currentWin > 0 ? currentWin.toLocaleString(lang === "br" ? "pt-BR" : "en-US") : "--"}
-              </div>
-            </div>
-          </div>
         </motion.div>
       </div>
 
-      {/* Controls bar - FORA da cabine, INTEGRADA embaixo */}
+      {/* Controls bar - Estilo luxuoso combinando com a moldura */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          gap: "clamp(8px, 1vw, 16px)",
-          padding: "clamp(8px, 1vw, 14px) clamp(12px, 2vw, 20px)",
-          background: "rgba(0,0,0,0.6)",
-          borderTop: "1px solid rgba(212,168,67,0.05)",
+          gap: "clamp(6px, 0.8vw, 12px)",
+          padding: "clamp(10px, 1.2vw, 16px) clamp(16px, 2.5vw, 24px)",
+          background: "linear-gradient(180deg, rgba(26,22,16,0.95) 0%, rgba(13,11,7,0.98) 100%)",
+          borderTop: "2px solid rgba(201,168,76,0.3)",
+          boxShadow: "0 -4px 20px rgba(0,0,0,0.4), inset 0 1px 0 rgba(201,168,76,0.1)",
           flexShrink: 0,
           zIndex: 5,
-          opacity: classicSpinning.some(s => s) ? 0.4 : 1,
+          opacity: classicSpinning.some(s => s) ? 0.5 : 1,
           pointerEvents: classicSpinning.some(s => s) ? "none" : "auto",
           transition: "opacity 0.3s ease",
         }}
       >
+        {/* Credito display */}
+        <div
+          style={{
+            padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 14px)",
+            background: "linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.8) 100%)",
+            border: "1px solid rgba(201,168,76,0.25)",
+            borderRadius: 8,
+            textAlign: "center",
+            minWidth: "clamp(70px, 10vw, 100px)",
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "'Inter', sans-serif",
+              fontSize: "clamp(7px, 0.8vw, 9px)",
+              color: "rgba(201,168,76,0.6)",
+              textTransform: "uppercase",
+              letterSpacing: 1,
+              marginBottom: 2,
+            }}
+          >
+            {lang === "br" ? "CREDITO" : "CREDIT"}
+          </div>
+          <div
+            style={{
+              fontFamily: "'JetBrains Mono', monospace",
+              fontWeight: 700,
+              fontSize: "clamp(11px, 1.3vw, 15px)",
+              color: "#C9A84C",
+              textShadow: "0 0 6px rgba(201,168,76,0.4)",
+            }}
+          >
+            {saldo.toLocaleString(lang === "br" ? "pt-BR" : "en-US")}
+          </div>
+        </div>
+
+        {/* Separador dourado */}
+        <div style={{ width: 1, height: 32, background: "rgba(201,168,76,0.2)" }} />
+
         <motion.button
           onClick={() => handleBetChange("min")}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, borderColor: "rgba(201,168,76,0.5)" }}
           whileTap={{ scale: 0.95 }}
           title={lang === "br" ? "Aposta minima" : "Minimum bet"}
           style={{
-            minWidth: 44,
-            minHeight: 44,
+            minWidth: 40,
+            minHeight: 40,
             padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: "linear-gradient(180deg, rgba(201,168,76,0.1) 0%, rgba(201,168,76,0.05) 100%)",
+            border: "1px solid rgba(201,168,76,0.3)",
             borderRadius: 6,
-            color: "#A8A8A8",
+            color: "#C9A84C",
             fontFamily: "'JetBrains Mono', monospace",
             fontWeight: 600,
-            fontSize: "clamp(10px, 1.2vw, 13px)",
+            fontSize: "clamp(9px, 1.1vw, 12px)",
             cursor: "pointer",
+            transition: "all 0.2s ease",
           }}
         >
           MIN
@@ -3920,42 +3842,45 @@ export default function SlotsGame({
 
         <motion.button
           onClick={() => handleBetChange("prev")}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, borderColor: "rgba(201,168,76,0.5)" }}
           whileTap={{ scale: 0.95 }}
           title={lang === "br" ? "Aposta anterior" : "Previous bet"}
           style={{
-            minWidth: 44,
-            minHeight: 44,
-            padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            minWidth: 40,
+            minHeight: 40,
+            padding: "clamp(4px, 0.5vw, 6px) clamp(10px, 1.2vw, 14px)",
+            background: "linear-gradient(180deg, rgba(201,168,76,0.1) 0%, rgba(201,168,76,0.05) 100%)",
+            border: "1px solid rgba(201,168,76,0.3)",
             borderRadius: 6,
-            color: "#A8A8A8",
+            color: "#C9A84C",
             fontFamily: "'JetBrains Mono', monospace",
-            fontWeight: 600,
-            fontSize: "clamp(10px, 1.2vw, 13px)",
+            fontWeight: 700,
+            fontSize: "clamp(14px, 1.6vw, 18px)",
             cursor: "pointer",
+            transition: "all 0.2s ease",
           }}
         >
-          −
+          -
         </motion.button>
 
         <div
           style={{
-            padding: "clamp(6px, 0.8vw, 10px) clamp(12px, 1.5vw, 18px)",
-            background: "rgba(212,168,67,0.08)",
-            border: "1px solid rgba(212,168,67,0.06)",
+            padding: "clamp(6px, 0.8vw, 10px) clamp(14px, 1.8vw, 22px)",
+            background: "linear-gradient(180deg, rgba(201,168,76,0.15) 0%, rgba(201,168,76,0.08) 100%)",
+            border: "2px solid rgba(201,168,76,0.4)",
             borderRadius: 8,
             textAlign: "center",
+            boxShadow: "inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 8px rgba(0,0,0,0.3)",
           }}
         >
           <div
             style={{
               fontFamily: "'Inter', sans-serif",
-              fontSize: "clamp(8px, 0.9vw, 10px)",
-              color: "rgba(212,168,67,0.1)",
+              fontSize: "clamp(7px, 0.8vw, 9px)",
+              color: "rgba(201,168,76,0.6)",
               textTransform: "uppercase",
               letterSpacing: 1,
+              marginBottom: 2,
             }}
           >
             {t("bet")}
@@ -3964,8 +3889,9 @@ export default function SlotsGame({
             style={{
               fontFamily: "'JetBrains Mono', monospace",
               fontWeight: 700,
-              fontSize: "clamp(12px, 1.5vw, 16px)",
-              color: "#C9A84C",
+              fontSize: "clamp(13px, 1.6vw, 18px)",
+              color: "#FFD700",
+              textShadow: "0 0 8px rgba(255,215,0,0.5)",
             }}
           >
             {bet} {cc.symbol}
@@ -3974,21 +3900,22 @@ export default function SlotsGame({
 
         <motion.button
           onClick={() => handleBetChange("next")}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, borderColor: "rgba(201,168,76,0.5)" }}
           whileTap={{ scale: 0.95 }}
           title={lang === "br" ? "Proxima aposta" : "Next bet"}
           style={{
-            minWidth: 44,
-            minHeight: 44,
-            padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            minWidth: 40,
+            minHeight: 40,
+            padding: "clamp(4px, 0.5vw, 6px) clamp(10px, 1.2vw, 14px)",
+            background: "linear-gradient(180deg, rgba(201,168,76,0.1) 0%, rgba(201,168,76,0.05) 100%)",
+            border: "1px solid rgba(201,168,76,0.3)",
             borderRadius: 6,
-            color: "#A8A8A8",
+            color: "#C9A84C",
             fontFamily: "'JetBrains Mono', monospace",
-            fontWeight: 600,
-            fontSize: "clamp(10px, 1.2vw, 13px)",
+            fontWeight: 700,
+            fontSize: "clamp(14px, 1.6vw, 18px)",
             cursor: "pointer",
+            transition: "all 0.2s ease",
           }}
         >
           +
@@ -3996,58 +3923,67 @@ export default function SlotsGame({
 
         <motion.button
           onClick={() => handleBetChange("max")}
-          whileHover={{ scale: 1.05 }}
+          whileHover={{ scale: 1.05, borderColor: "rgba(201,168,76,0.5)" }}
           whileTap={{ scale: 0.95 }}
           title={lang === "br" ? "Aposta maxima" : "Maximum bet"}
           style={{
-            minWidth: 44,
-            minHeight: 44,
+            minWidth: 40,
+            minHeight: 40,
             padding: "clamp(4px, 0.5vw, 6px) clamp(8px, 1vw, 12px)",
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid rgba(255,255,255,0.1)",
+            background: "linear-gradient(180deg, rgba(201,168,76,0.1) 0%, rgba(201,168,76,0.05) 100%)",
+            border: "1px solid rgba(201,168,76,0.3)",
             borderRadius: 6,
-            color: "#A8A8A8",
+            color: "#C9A84C",
             fontFamily: "'JetBrains Mono', monospace",
             fontWeight: 600,
-            fontSize: "clamp(10px, 1.2vw, 13px)",
+            fontSize: "clamp(9px, 1.1vw, 12px)",
             cursor: "pointer",
+            transition: "all 0.2s ease",
           }}
         >
           MAX
         </motion.button>
 
-        {/* Spin circular */}
+        {/* Separador dourado */}
+        <div style={{ width: 1, height: 32, background: "rgba(201,168,76,0.2)" }} />
+
+        {/* Spin button - estilo premium */}
         <motion.button
           onClick={handleLeverPull}
-          whileHover={{ scale: 1.08, boxShadow: "0 0 24px rgba(212,168,67,0.08)" }}
+          whileHover={{ scale: 1.08, boxShadow: "0 0 30px rgba(201,168,76,0.4)" }}
           whileTap={{ scale: 0.95 }}
           disabled={classicSpinning.some(s => s) || bet > saldo}
           title={t("spinTooltip")}
           style={{
-            width: 56,
-            height: 56,
+            width: 52,
+            height: 52,
             borderRadius: "50%",
             background: classicSpinning.some(s => s)
-              ? "rgba(255,255,255,0.1)"
-              : "linear-gradient(135deg, #C9A84C 0%, #00C853 100%)",
-            border: "2px solid rgba(212,168,67,0.1)",
-            boxShadow: "0 0 16px rgba(212,168,67,0.1), 0 4px 12px rgba(0,0,0,0.4)",
+              ? "rgba(100,100,100,0.3)"
+              : "linear-gradient(135deg, #FFD700 0%, #C9A84C 50%, #8B6914 100%)",
+            border: "3px solid rgba(201,168,76,0.6)",
+            boxShadow: classicSpinning.some(s => s) 
+              ? "none"
+              : "0 0 20px rgba(255,215,0,0.4), 0 4px 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.3)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             cursor: classicSpinning.some(s => s) ? "not-allowed" : "pointer",
-            opacity: classicSpinning.some(s => s) ? 0.4 : 1,
+            opacity: classicSpinning.some(s => s) ? 0.5 : 1,
             flexShrink: 0,
+            transition: "all 0.2s ease",
           }}
         >
           <span
             style={{
-              fontSize: "clamp(16px, 2vw, 22px)",
-              color: "#FFFFFF",
+              fontSize: "clamp(14px, 1.8vw, 20px)",
+              color: classicSpinning.some(s => s) ? "#666" : "#1A1610",
               lineHeight: 1,
+              fontWeight: 700,
+              textShadow: classicSpinning.some(s => s) ? "none" : "0 1px 0 rgba(255,255,255,0.3)",
             }}
           >
-            ▶
+            SPIN
           </span>
         </motion.button>
 
@@ -4057,25 +3993,29 @@ export default function SlotsGame({
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             onClick={onDeposit}
-            whileHover={{ borderColor: "rgba(212,168,67,0.5)" }}
+            whileHover={{ borderColor: "rgba(255,107,107,0.5)" }}
             whileTap={{ scale: 0.95 }}
             style={{
-              padding: "4px 10px",
+              padding: "6px 12px",
               borderRadius: "6px",
-              background: "rgba(255,107,107,0.08)",
-              border: "1px solid rgba(255,107,107,0.25)",
+              background: "linear-gradient(180deg, rgba(255,107,107,0.15) 0%, rgba(255,107,107,0.08) 100%)",
+              border: "1px solid rgba(255,107,107,0.35)",
               color: "#FF6B6B",
-              fontSize: "clamp(8px, 0.75vw, 10px)",
+              fontSize: "clamp(8px, 0.8vw, 10px)",
               fontFamily: "'Inter', sans-serif",
               fontWeight: 600,
               cursor: "pointer",
               outline: "none",
               whiteSpace: "nowrap",
+              textShadow: "0 0 8px rgba(255,107,107,0.3)",
             }}
           >
-            {lang === "br" ? "Saldo baixo — Depositar" : "Low balance — Deposit"}
+            {lang === "br" ? "Saldo baixo" : "Low balance"}
           </motion.button>
         )}
+
+        {/* Separador dourado */}
+        <div style={{ width: 1, height: 32, background: "rgba(201,168,76,0.2)" }} />
 
         {/* Voltar ao Video */}
         <motion.button
@@ -4083,19 +4023,20 @@ export default function SlotsGame({
             setMode("video");
             setScreen("videoIdle");
           }}
-          whileHover={{ scale: 1.03 }}
+          whileHover={{ scale: 1.03, borderColor: "rgba(201,168,76,0.5)" }}
           whileTap={{ scale: 0.97 }}
           title={lang === "br" ? "Trocar para modo Video" : "Switch to Video mode"}
           style={{
-            minWidth: 44,
-            minHeight: 44,
+            minWidth: 40,
+            minHeight: 40,
             padding: "clamp(6px, 0.8vw, 10px) clamp(10px, 1.2vw, 16px)",
-            background: "rgba(212,168,67,0.08)",
-            border: "1px solid rgba(212,168,67,0.06)",
+            background: "linear-gradient(180deg, rgba(201,168,76,0.1) 0%, rgba(201,168,76,0.05) 100%)",
+            border: "1px solid rgba(201,168,76,0.3)",
             borderRadius: 8,
             color: "#C9A84C",
             fontFamily: "'Cinzel', serif",
             fontWeight: 600,
+            transition: "all 0.2s ease",
             fontSize: "clamp(9px, 1.1vw, 12px)",
             cursor: "pointer",
             letterSpacing: 1,
