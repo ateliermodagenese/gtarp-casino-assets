@@ -22,6 +22,7 @@ import { BlackjackGame } from "@/components/games/blackjack";
 import { DailyFreeGame } from "@/components/games/daily-free";
 import { RouletteGame } from "@/components/games/roulette";
 import { PokerGame } from "@/components/games/poker";
+import { PoolGame } from "@/components/games/pool";
 
 type GameComp = React.ComponentType<{ onBack: () => void; onDeposit?: () => void }>;
 
@@ -34,6 +35,8 @@ const GAME_MAP: Record<string, GameComp> = {
   "daily-free": DailyFreeGame,
   roulette: RouletteGame,
   poker: PokerGame,
+  "pool-game": PoolGame,
+  pool: PoolGame,
 };
 
 // === MAPA DE COMPONENTES INDIVIDUAIS (telas/modais) ===
