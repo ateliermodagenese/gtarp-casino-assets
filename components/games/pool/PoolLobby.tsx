@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { GameHeader } from "@/components/shared";
+import PoolTable from "./PoolTable";
 
 // ===========================================================================
 // POOL LOBBY — Tela inicial do Pool Game (#22)
@@ -12,6 +13,7 @@ import { GameHeader } from "@/components/shared";
 
 type Lang = "br" | "in";
 type GameMode = "8ball" | "9ball";
+type Screen = "lobby" | "matchmaking" | "game";
 
 interface Tier {
   id: number;
@@ -76,23 +78,72 @@ function formatCurrency(val: number): string {
 // COMPONENT
 // ===========================================================================
 
-export default function PoolLobby({
+export default function PoolGame({
   onBack,
   onFindMatch,
   initialBalance,
   lang,
 }: {
   onBack: () => void;
-  onFindMatch: (mode: GameMode, tier: Tier) => void;
+  onFindMatch?: (mode: GameMode, tier: Tier) => void;
   initialBalance: number;
   lang: Lang;
 }) {
+  const [screen, setScreen] = useState<Screen>("lobby");
   const [selectedMode, setSelectedMode] = useState<GameMode>("8ball");
   const [selectedTierId, setSelectedTierId] = useState<number>(3); // Profissional default
+  const [balance, setBalance] = useState(initialBalance);
 
   const selectedTier = TIERS.find((t) => t.id === selectedTierId)!;
-  const canAfford = initialBalance >= selectedTier.entry;
+  const canAfford = balance >= selectedTier.entry;
 
+  const handleFindMatch = () => {
+    if (!canAfford) return;
+    
+    // Deduz entry fee do saldo
+    setBalance((prev) => prev - selectedTier.entry);
+    
+    // Callback externo se existir
+    if (onFindMatch) {
+      onFindMatch(selectedMode, selectedTier);
+    }
+    
+    // Vai direto para o jogo (futuramente pode ter matchmaking screen)
+    setScreen("game");
+  };
+
+  const handleBackFromGame = () => {
+    setScreen("lobby");
+  };
+
+  const handleGameEnd = (won: boolean) => {
+    if (won) {
+      // Winner takes pot minus 5% rake
+      const winnings = Math.floor(selectedTier.pot * 0.95);
+      setBalance((prev) => prev + winnings);
+    }
+    setScreen("lobby");
+  };
+
+  // =========================================================================
+  // RENDER GAME SCREEN
+  // =========================================================================
+  if (screen === "game") {
+    return (
+      <PoolTable
+        onBack={handleBackFromGame}
+        onGameEnd={handleGameEnd}
+        pot={selectedTier.pot}
+        mode={selectedMode}
+        lang={lang}
+        balance={balance}
+      />
+    );
+  }
+
+  // =========================================================================
+  // RENDER LOBBY SCREEN
+  // =========================================================================
   return (
     <div
       style={{
@@ -130,7 +181,7 @@ export default function PoolLobby({
       <GameHeader
         onBack={onBack}
         title={TEXTS.title[lang]}
-        balance={initialBalance}
+        balance={balance}
         lang={lang}
         actions={[]}
       />
@@ -282,7 +333,7 @@ export default function PoolLobby({
         >
           {TIERS.map((tier) => {
             const isSelected = tier.id === selectedTierId;
-            const affordable = initialBalance >= tier.entry;
+            const affordable = balance >= tier.entry;
 
             return (
               <motion.button
@@ -374,7 +425,7 @@ export default function PoolLobby({
         <motion.button
           whileHover={{ scale: canAfford ? 1.03 : 1 }}
           whileTap={{ scale: canAfford ? 0.97 : 1 }}
-          onClick={() => canAfford && onFindMatch(selectedMode, selectedTier)}
+          onClick={handleFindMatch}
           disabled={!canAfford}
           style={{
             minHeight: "52px",

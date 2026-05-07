@@ -233,18 +233,24 @@ function darkenColor(hex: string, percent: number): string {
 
 export default function PoolTable({
   onBack,
-  onShoot,
+  onGameEnd,
+  pot: initialPot,
+  mode,
   lang,
+  balance,
 }: {
   onBack: () => void;
-  onShoot: () => void;
+  onGameEnd?: (won: boolean) => void;
+  pot?: number;
+  mode?: "8ball" | "9ball";
   lang: Lang;
+  balance?: number;
 }) {
   const [balls] = useState<Ball[]>(MOCK_BALLS);
   const [players] = useState<Player[]>(MOCK_PLAYERS);
   const [power, setPower] = useState(65);
   const [timer] = useState(25);
-  const [pot] = useState(2000);
+  const [pot] = useState(initialPot || 2000);
   const [aimAngle, setAimAngle] = useState(0); // graus
   const [spinX, setSpinX] = useState(0); // -1 a 1
   const [spinY, setSpinY] = useState(0); // -1 a 1
