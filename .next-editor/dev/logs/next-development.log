@@ -1,0 +1,58 @@
+[00:00:00.973] Server  LOG     ✓ Ready in 707ms
+[00:00:01.244] Server  ERROR   (node:22560) [DEP0060] DeprecationWarning: The `util._extend` API is deprecated. Please use Object.assign() instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+[00:00:02.110] Browser ERROR   uncaughtError: Error: ./components/games/slots/SlotsGame.tsx:3529:24
+Parsing ecmascript source code failed
+  3527 |               zIndex: 2,
+  3528 |             },
+> 3529 |               transform: "translate(-15px, 0px)",
+       |                        ^
+  3530 |             }}}
+  3531 |           />
+  3532 |
+
+Expected '</', got ':'
+
+Import traces:
+  Client Component Browser:
+    ./components/games/slots/SlotsGame.tsx [Client Component Browser]
+    ./components/casino/BlackoutCasino.tsx [Client Component Browser]
+    ./components/casino/BlackoutCasino.tsx [Server Component]
+    ./app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/games/slots/SlotsGame.tsx [Client Component SSR]
+    ./components/casino/BlackoutCasino.tsx [Client Component SSR]
+    ./components/casino/BlackoutCasino.tsx [Server Component]
+    ./app/page.tsx [Server Component]
+
+
+[00:00:05.521] Browser INFO    %cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold
+[00:00:08.522] Browser ERROR   uncaughtError: Error: ./components/games/slots/SlotsGame.tsx:3529:24
+Parsing ecmascript source code failed
+  3527 |               zIndex: 2,
+  3528 |             },
+> 3529 |               transform: "translate(-15px, 0px)",
+       |                        ^
+  3530 |             }}}
+  3531 |           />
+  3532 |
+
+Expected '</', got ':'
+
+Import traces:
+  Client Component Browser:
+    ./components/games/slots/SlotsGame.tsx [Client Component Browser]
+    ./components/casino/BlackoutCasino.tsx [Client Component Browser]
+    ./components/casino/BlackoutCasino.tsx [Server Component]
+    ./app/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./components/games/slots/SlotsGame.tsx [Client Component SSR]
+    ./components/casino/BlackoutCasino.tsx [Client Component SSR]
+    ./components/casino/BlackoutCasino.tsx [Server Component]
+    ./app/page.tsx [Server Component]
+
+
+[00:01:10.263] Server  WARN    ⚠ Fast Refresh had to perform a full reload due to a runtime error.
+[00:01:10.306] Server  LOG     ✓ Compiled in 2.4s

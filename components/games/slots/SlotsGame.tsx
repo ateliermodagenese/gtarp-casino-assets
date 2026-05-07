@@ -3458,7 +3458,19 @@ export default function SlotsGame({
     }, 400);
   }, [classicSpinning, bet, saldo, handleClassicSpin]);
 
-  const renderClassicSlot = () => (
+  const renderClassicSlot = () => {
+    // === Coordenadas das 3 janelas dentro do PNG da maquina (622x491) ===
+    // Calibradas via deteccao de areas transparentes do asset.
+    // Sao percentuais relativos ao container da cabine.
+    const REELS = [
+      { left: "15.1%", top: "34.0%", width: "19.0%", height: "38.3%" }, // esquerdo
+      { left: "36.5%", top: "34.2%", width: "19.6%", height: "38.3%" }, // central
+      { left: "58.2%", top: "34.2%", width: "19.0%", height: "38.1%" }, // direito
+    ];
+    const ANY_SPINNING = classicSpinning.some(s => s);
+    const isLeverDisabled = ANY_SPINNING || bet > saldo;
+
+    return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -3483,130 +3495,87 @@ export default function SlotsGame({
           overflow: "hidden",
         }}
       >
-        {/* CABINE METALICA */}
+        {/* CABINE FISICA — PNG dourado/bordo (622x491, ratio 1.267) */}
         <motion.div
           animate={classicFeedback === "win" ? { x: [0, -3, 3, -2, 2, 0] } : { x: 0 }}
           transition={classicFeedback === "win" ? { duration: 0.3, ease: "easeInOut" } : { duration: 0.1 }}
           style={{
-            width: "clamp(260px, 45vw, 440px)",
-            maxHeight: "clamp(280px, 52vh, 480px)",
-            background: "linear-gradient(180deg, #2A2215 0%, #1A1610 40%, #0D0B07 100%)",
-            border: "3px solid #C9A84C",
-            borderRadius: 24,
-            boxShadow: "0 0 40px rgba(212,168,67,0.1), 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(212,168,67,0.06), inset 0 -2px 0 rgba(0,0,0,0.4)",
-            padding: "clamp(8px, 1.5vw, 18px)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
             position: "relative",
-            overflow: "visible",
+            width: "clamp(320px, 55vw, 580px)",
+            aspectRatio: "622 / 491",
+            maxHeight: "clamp(280px, 60vh, 520px)",
+            // Filtro dourado dramatico no win, drop-shadow normal idle
+            filter: classicFeedback === "win"
+              ? "drop-shadow(0 0 24px rgba(255,200,80,0.55)) drop-shadow(0 8px 24px rgba(0,0,0,0.6))"
+              : "drop-shadow(0 8px 28px rgba(0,0,0,0.55)) drop-shadow(0 0 12px rgba(212,168,67,0.18))",
+            transition: "filter 0.4s ease",
           }}
         >
-          {/* D5 — Canvas overlay para gold particles */}
-          <canvas
-            ref={particleCanvasRef}
-            style={{ position: "absolute", inset: 0, zIndex: 15, pointerEvents: "none", borderRadius: 24 }}
+          {/* === LAYER 1: PNG da cabine (background) === */}
+          <img
+            src="/assets/games/slots/classic/cabinet/machine.png"
+            alt=""
+            draggable={false}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "contain",
+              userSelect: "none",
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
           />
-          {/* PLACA "CLASSIC SLOTS" com luzes */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              marginBottom: "clamp(8px, 1.5vw, 16px)",
-            }}
-          >
-            {/* Luzes decorativas */}
-            <div
-              style={{
-                display: "flex",
-                gap: "clamp(8px, 1.2vw, 14px)",
-                marginBottom: "clamp(4px, 0.5vw, 6px)",
-              }}
-            >
-              {[0, 1, 2, 3, 4].map((i) => (
-                <motion.div
-                  key={i}
-                  animate={{ opacity: [0.4, 1, 0.4] }}
-                  transition={{ duration: classicFeedback === "win" ? 0.4 : 1.5, repeat: Infinity, delay: i * (classicFeedback === "win" ? 0.08 : 0.3) }}
-                  style={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: "50%",
-                    background: "#FFD700",
-                    boxShadow: "0 0 8px rgba(255,215,0,0.6)",
-                  }}
-                />
-              ))}
-            </div>
-            <div
-              style={{
-                fontFamily: "'Cinzel', serif",
-                fontWeight: 900,
-                fontSize: "clamp(14px, 2.2vw, 22px)",
-                color: "#FFD700",
-                textShadow: "0 0 12px rgba(255,215,0,0.6), 0 0 30px rgba(255,215,0,0.2)",
-                letterSpacing: 4,
-                textAlign: "center",
-                padding: "clamp(6px, 1vw, 12px) clamp(16px, 3vw, 32px)",
-                background: "linear-gradient(180deg, rgba(212,168,67,0.05) 0%, rgba(212,168,67,0.05) 100%)",
-                border: "1px solid rgba(212,168,67,0.1)",
-                borderRadius: 8,
-              }}
-            >
-              CLASSIC SLOTS
-            </div>
-          </div>
 
-          {/* JANELA DOS REELS com profundidade */}
-          <div
-            style={{
-              display: "flex",
-              gap: "clamp(4px, 0.6vw, 8px)",
-              background: "linear-gradient(180deg, #050505 0%, #0A0A0A 50%, #050505 100%)",
-              border: "2px solid rgba(212,168,67,0.06)",
-              borderRadius: 12,
-              padding: "clamp(4px, 0.5vw, 8px)",
-              boxShadow: "inset 0 8px 20px rgba(0,0,0,0.8), inset 0 -8px 20px rgba(0,0,0,0.8), 0 0 20px rgba(212,168,67,0.05)",
-              position: "relative",
-            }}
-          >
-            {/* Linha central decorativa (sutil) */}
+          {/* === LAYER 0: fundo escuro atras das janelas (cria profundidade nos reels) === */}
+          {REELS.map((r, i) => (
             <div
+              key={`bg-${i}`}
               style={{
                 position: "absolute",
-                left: 0,
-                right: 0,
-                top: "50%",
-                height: 1,
-                background: "rgba(212,168,67,0.04)",
-                zIndex: 3,
+                left: r.left,
+                top: r.top,
+                width: r.width,
+                height: r.height,
+                background: "radial-gradient(ellipse at center, #14110A 0%, #050402 100%)",
+                boxShadow: "inset 0 8px 18px rgba(0,0,0,0.85), inset 0 -8px 18px rgba(0,0,0,0.85)",
+                zIndex: 1,
                 pointerEvents: "none",
               }}
             />
+          ))}
 
-            {/* 3 REELS */}
-            {[0, 1, 2].map((reelIndex) => (
+          {/* === LAYER 3: Canvas overlay para gold particles (mantido) === */}
+          <canvas
+            ref={particleCanvasRef}
+            style={{ position: "absolute", inset: 0, zIndex: 6, pointerEvents: "none" }}
+          />
+
+          {/* === LAYER 4: REELS — encaixados nas 3 janelas do PNG === */}
+          {[0, 1, 2].map((reelIndex) => {
+            const r = REELS[reelIndex];
+            return (
               <div
                 key={reelIndex}
                 style={{
-                  width: "clamp(60px, 10vw, 90px)",
-                  height: "clamp(180px, 28vh, 270px)",
+                  position: "absolute",
+                  left: r.left,
+                  top: r.top,
+                  width: r.width,
+                  height: r.height,
                   overflow: "hidden",
-                  position: "relative",
-                  borderLeft: reelIndex > 0 ? "1px solid rgba(212,168,67,0.1)" : "none",
+                  zIndex: 3,
                 }}
               >
                 {/* Sombra topo (profundidade) */}
                 <div
                   style={{
                     position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    height: "30%",
-                    background: "linear-gradient(180deg, rgba(0,0,0,0.9) 0%, transparent 100%)",
-                    zIndex: 3,
+                    top: 0, left: 0, right: 0,
+                    height: "22%",
+                    background: "linear-gradient(180deg, rgba(0,0,0,0.95) 0%, transparent 100%)",
+                    zIndex: 4,
                     pointerEvents: "none",
                   }}
                 />
@@ -3614,17 +3583,15 @@ export default function SlotsGame({
                 <div
                   style={{
                     position: "absolute",
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    height: "30%",
-                    background: "linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%)",
-                    zIndex: 3,
+                    bottom: 0, left: 0, right: 0,
+                    height: "22%",
+                    background: "linear-gradient(0deg, rgba(0,0,0,0.95) 0%, transparent 100%)",
+                    zIndex: 4,
                     pointerEvents: "none",
                   }}
                 />
 
-                {/* Reel inner com animacao */}
+                {/* Reel inner com animacao de spin (logica IDENTICA a anterior) */}
                 <motion.div
                   animate={
                     classicSpinning[reelIndex]
@@ -3639,6 +3606,7 @@ export default function SlotsGame({
                   style={{
                     display: "flex",
                     flexDirection: "column",
+                    height: "100%",
                   }}
                 >
                   {(classicSpinning[reelIndex]
@@ -3657,13 +3625,11 @@ export default function SlotsGame({
                       key={`${reelIndex}-${symbolIndex}`}
                       style={{
                         width: "100%",
-                        height: "clamp(60px, 9.3vh, 90px)",
+                        flex: "1 0 33.333%",
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
-                        borderRadius: 6,
                         background: isWinCell ? (is3of ? "rgba(212,168,67,0.18)" : "rgba(212,168,67,0.08)") : "transparent",
-                        border: isWinCell ? (is3of ? "1.5px solid rgba(212,168,67,0.85)" : "1.5px solid rgba(212,168,67,0.45)") : "1.5px solid transparent",
                         boxShadow: isWinCell ? (is3of ? "0 0 18px rgba(212,168,67,0.5), inset 0 0 10px rgba(212,168,67,0.15)" : "0 0 8px rgba(212,168,67,0.2)") : "none",
                         transition: "all 0.2s ease",
                       }}
@@ -3671,11 +3637,12 @@ export default function SlotsGame({
                       <img
                         src={symbol.path}
                         alt={symbol.id}
+                        draggable={false}
                         style={{
-                          width: "75%",
-                          height: "75%",
+                          width: "78%",
+                          height: "78%",
                           objectFit: "contain",
-                          filter: isWinCell ? (is3of ? "drop-shadow(0 0 8px rgba(255,215,0,0.7))" : "drop-shadow(0 0 4px rgba(255,215,0,0.35))") : "none",
+                          filter: isWinCell ? (is3of ? "drop-shadow(0 0 8px rgba(255,215,0,0.8))" : "drop-shadow(0 0 4px rgba(255,215,0,0.4))") : "none",
                           transition: "filter 0.2s ease",
                         }}
                       />
@@ -3684,62 +3651,124 @@ export default function SlotsGame({
                   })}
                 </motion.div>
               </div>
-            ))}
-          </div>
+            );
+          })}
 
-          {/* MANIVELA — encaixada na borda da cabine */}
+          {/* === LAYER 5: Displays CRED/APOSTA/GANHO posicionados nos paineis === */}
+          {/* Faixa inferior dos paineis: y=76% a y=89% no asset (622x491).   */}
+          {/* Centros X: CRED ~22%, APOSTA ~48% (placa esmeralda), GANHO ~72% */}
+          {[
+            {
+              key: "credit",
+              left: "26%",
+              label: lang === "br" ? "CREDITO" : "CREDIT",
+              labelColor: "rgba(245,210,130,0.7)",
+              value: saldo.toLocaleString(lang === "br" ? "pt-BR" : "en-US"),
+              valueColor: "#FFD27A",
+              valueShadow: "0 0 8px rgba(255,200,90,0.6), 0 1px 2px rgba(0,0,0,0.95)",
+            },
+            {
+              key: "bet",
+              left: "50%",
+              label: t("bet"),
+              labelColor: "rgba(180,255,200,0.85)",
+              value: String(bet),
+              valueColor: "#9BFFB4",
+              valueShadow: "0 0 8px rgba(80,230,140,0.7), 0 1px 2px rgba(0,0,0,0.95)",
+            },
+            {
+              key: "win",
+              left: "74%",
+              label: t("win"),
+              labelColor: "rgba(245,210,130,0.7)",
+              value: currentWin > 0 ? currentWin.toLocaleString(lang === "br" ? "pt-BR" : "en-US") : "--",
+              valueColor: currentWin > 0 ? "#FFD27A" : "rgba(180,140,80,0.75)",
+              valueShadow: currentWin > 0 ? "0 0 8px rgba(255,200,90,0.7), 0 1px 2px rgba(0,0,0,0.95)" : "0 1px 2px rgba(0,0,0,0.9)",
+            },
+          ].map(d => (
+            <div
+              key={d.key}
+              style={{
+                position: "absolute",
+                left: d.left,
+                top: "82.5%",
+                transform: "translateX(-50%)",
+                textAlign: "center",
+                zIndex: 4,
+                pointerEvents: "none",
+                lineHeight: 1.1,
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "'Inter', sans-serif",
+                  fontSize: "clamp(6px, 0.75vw, 9px)",
+                  color: d.labelColor,
+                  textTransform: "uppercase",
+                  letterSpacing: 1.5,
+                  textShadow: "0 1px 2px rgba(0,0,0,0.9)",
+                  marginBottom: 1,
+                }}
+              >
+                {d.label}
+              </div>
+              <div
+                style={{
+                  fontFamily: "'JetBrains Mono', monospace",
+                  fontWeight: 700,
+                  fontSize: "clamp(9px, 1.15vw, 14px)",
+                  color: d.valueColor,
+                  textShadow: d.valueShadow,
+                  fontVariantNumeric: "tabular-nums",
+                  lineHeight: 1,
+                }}
+              >
+                {d.value}
+              </div>
+            </div>
+          ))}
+
+          {/* === LAYER 6: MANIVELA — PNG ancorada no disco da maquina === */}
+          {/* O disco real da maquina (entalhe redondo lateral) esta em (90%, 60%). */}
+          {/* O centro do disco no PNG da manivela esta em (28.4%, 56.1%).         */}
+          {/* Logo: left = 90 - 35*0.284 = 80.06%, top = 60 - 35*0.561 = 40.36%   */}
           <motion.div
-            onClick={handleLeverPull}
-            whileHover={{ scale: 1.05 }}
+            onClick={isLeverDisabled ? undefined : handleLeverPull}
+            whileHover={isLeverDisabled ? undefined : { scale: 1.04 }}
+            whileTap={isLeverDisabled ? undefined : { scale: 0.96 }}
             title={t("spinTooltip")}
+            animate={{ rotate: isLeverPulled ? 38 : 0 }}
+            transition={{ type: "spring", stiffness: 380, damping: 18 }}
             style={{
               position: "absolute",
-              right: "clamp(-18px, -2.2vw, -24px)",
-              top: "35%",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              cursor: classicSpinning.some(s => s) ? "not-allowed" : "pointer",
-              zIndex: 10,
-              opacity: classicSpinning.some(s => s) ? 0.5 : 1,
+              left: "80%",
+              top: "40%",
+              width: "35%",
+              height: "35%",
+              cursor: isLeverDisabled ? "not-allowed" : "pointer",
+              opacity: isLeverDisabled ? 0.55 : 1,
+              transformOrigin: "28.4% 56.1%", // gira em torno do centro do disco
+              zIndex: 5,
+              filter: classicFeedback === "win"
+                ? "drop-shadow(0 0 14px rgba(255,180,60,0.7))"
+                : "drop-shadow(0 6px 12px rgba(0,0,0,0.6))",
             }}
           >
-            {/* Bola topo */}
-            <motion.div
-              animate={{ y: isLeverPulled ? 40 : 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 15 }}
+            <img
+              src="/assets/games/slots/classic/cabinet/lever.png"
+              alt="Lever"
+              draggable={false}
               style={{
-                width: "clamp(20px, 3vw, 28px)",
-                height: "clamp(20px, 3vw, 28px)",
-                borderRadius: "50%",
-                background: "radial-gradient(circle at 35% 35%, #F6E27A, #C9A84C, #8B6914)",
-                boxShadow: "0 0 10px rgba(212,168,67,0.06), inset 0 -2px 4px rgba(0,0,0,0.3)",
-                marginBottom: 4,
-                zIndex: 2,
-              }}
-            />
-            {/* Barra vertical */}
-            <div
-              style={{
-                width: "clamp(8px, 1vw, 12px)",
-                height: "clamp(80px, 12vh, 120px)",
-                background: "linear-gradient(90deg, #8B6914, #C9A84C, #8B6914)",
-                borderRadius: 4,
-                boxShadow: "2px 0 6px rgba(0,0,0,0.4)",
-              }}
-            />
-            {/* Base */}
-            <div
-              style={{
-                width: "clamp(16px, 2vw, 22px)",
-                height: "clamp(6px, 0.8vw, 10px)",
-                background: "linear-gradient(180deg, #C9A84C, #8B6914)",
-                borderRadius: "0 0 4px 4px",
+                width: "100%",
+                height: "100%",
+                objectFit: "contain",
+                userSelect: "none",
+                pointerEvents: "none",
               }}
             />
           </motion.div>
 
-          {/* Win/Lose feedback — estilo arcade stamp */}
+          {/* === LAYER 7: Win/Lose feedback (mantido) === */}
           <AnimatePresence>
             {classicFeedback && (
               <motion.div
@@ -3756,7 +3785,7 @@ export default function SlotsGame({
                   zIndex: 20,
                   pointerEvents: "none",
                   background: classicFeedback === "win"
-                    ? "radial-gradient(ellipse at center, rgba(212,168,67,0.1) 0%, transparent 60%)"
+                    ? "radial-gradient(ellipse at center, rgba(255,200,80,0.15) 0%, transparent 60%)"
                     : "radial-gradient(ellipse at center, rgba(255,68,68,0.08) 0%, transparent 60%)",
                 }}
               >
@@ -3767,11 +3796,11 @@ export default function SlotsGame({
                     fontSize: "clamp(28px, 6vw, 52px)",
                     textTransform: "uppercase",
                     letterSpacing: "clamp(4px, 1vw, 8px)",
-                    color: classicFeedback === "win" ? "#C9A84C" : "#FF4444",
+                    color: classicFeedback === "win" ? "#FFD27A" : "#FF4444",
                     textShadow: classicFeedback === "win"
-                      ? "0 0 30px rgba(212,168,67,0.06), 0 0 60px rgba(212,168,67,0.06), 0 0 100px rgba(212,168,67,0.06), 0 4px 12px rgba(0,0,0,0.9)"
-                      : "0 0 30px rgba(255,68,68,0.6), 0 0 60px rgba(255,68,68,0.3), 0 0 100px rgba(255,68,68,0.15), 0 4px 12px rgba(0,0,0,0.9)",
-                    WebkitTextStroke: "1px rgba(0,0,0,0.3)",
+                      ? "0 0 30px rgba(255,200,90,0.9), 0 0 60px rgba(255,200,90,0.5), 0 4px 12px rgba(0,0,0,0.9)"
+                      : "0 0 30px rgba(255,68,68,0.6), 0 4px 12px rgba(0,0,0,0.9)",
+                    WebkitTextStroke: "1px rgba(0,0,0,0.4)",
                   }}
                 >
                   {classicFeedback === "win"
@@ -3781,101 +3810,6 @@ export default function SlotsGame({
               </motion.div>
             )}
           </AnimatePresence>
-
-          {/* PAINEL LED INFERIOR */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-around",
-              width: "100%",
-              marginTop: "clamp(8px, 1.5vw, 16px)",
-              padding: "clamp(6px, 1vw, 12px)",
-              background: "rgba(0,0,0,0.6)",
-              border: "1px solid rgba(212,168,67,0.05)",
-              borderRadius: 8,
-            }}
-          >
-            {/* Credito */}
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "clamp(8px, 1vw, 11px)",
-                  color: "rgba(212,168,67,0.1)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                  marginBottom: 2,
-                }}
-              >
-                {lang === "br" ? "CREDITO" : "CREDIT"}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 700,
-                  fontSize: "clamp(12px, 1.6vw, 18px)",
-                  color: "#C9A84C",
-                  textShadow: "0 0 8px rgba(212,168,67,0.06)",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {saldo.toLocaleString(lang === "br" ? "pt-BR" : "en-US")}
-              </div>
-            </div>
-            {/* Aposta */}
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "clamp(8px, 1vw, 11px)",
-                  color: "rgba(212,168,67,0.1)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                  marginBottom: 2,
-                }}
-              >
-                {t("bet")}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 700,
-                  fontSize: "clamp(12px, 1.6vw, 18px)",
-                  color: "#C9A84C",
-                  textShadow: "0 0 8px rgba(212,168,67,0.1)",
-                }}
-              >
-                {bet}
-              </div>
-            </div>
-            {/* Ganho */}
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  fontFamily: "'Inter', sans-serif",
-                  fontSize: "clamp(8px, 1vw, 11px)",
-                  color: "rgba(212,168,67,0.1)",
-                  textTransform: "uppercase",
-                  letterSpacing: 1,
-                  marginBottom: 2,
-                }}
-              >
-                {t("win")}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono', monospace",
-                  fontWeight: 700,
-                  fontSize: "clamp(12px, 1.6vw, 18px)",
-                  color: currentWin > 0 ? "#C9A84C" : "#666666",
-                  textShadow: currentWin > 0 ? "0 0 10px rgba(212,168,67,0.08)" : "none",
-                  fontVariantNumeric: "tabular-nums",
-                }}
-              >
-                {currentWin > 0 ? currentWin.toLocaleString(lang === "br" ? "pt-BR" : "en-US") : "--"}
-              </div>
-            </div>
-          </div>
         </motion.div>
       </div>
 
@@ -3891,8 +3825,8 @@ export default function SlotsGame({
           borderTop: "1px solid rgba(212,168,67,0.05)",
           flexShrink: 0,
           zIndex: 5,
-          opacity: classicSpinning.some(s => s) ? 0.4 : 1,
-          pointerEvents: classicSpinning.some(s => s) ? "none" : "auto",
+          opacity: ANY_SPINNING ? 0.4 : 1,
+          pointerEvents: ANY_SPINNING ? "none" : "auto",
           transition: "opacity 0.3s ease",
         }}
       >
@@ -4021,13 +3955,13 @@ export default function SlotsGame({
           onClick={handleLeverPull}
           whileHover={{ scale: 1.08, boxShadow: "0 0 24px rgba(212,168,67,0.08)" }}
           whileTap={{ scale: 0.95 }}
-          disabled={classicSpinning.some(s => s) || bet > saldo}
+          disabled={isLeverDisabled}
           title={t("spinTooltip")}
           style={{
             width: 56,
             height: 56,
             borderRadius: "50%",
-            background: classicSpinning.some(s => s)
+            background: ANY_SPINNING
               ? "rgba(255,255,255,0.1)"
               : "linear-gradient(135deg, #C9A84C 0%, #00C853 100%)",
             border: "2px solid rgba(212,168,67,0.1)",
@@ -4035,8 +3969,8 @@ export default function SlotsGame({
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            cursor: classicSpinning.some(s => s) ? "not-allowed" : "pointer",
-            opacity: classicSpinning.some(s => s) ? 0.4 : 1,
+            cursor: ANY_SPINNING ? "not-allowed" : "pointer",
+            opacity: ANY_SPINNING ? 0.4 : 1,
             flexShrink: 0,
           }}
         >
@@ -4052,7 +3986,7 @@ export default function SlotsGame({
         </motion.button>
 
         {/* G3: Badge saldo insuficiente + depositar (classic) */}
-        {!classicSpinning.some(s => s) && bet > saldo && onDeposit && (
+        {!ANY_SPINNING && bet > saldo && onDeposit && (
           <motion.button
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -4105,7 +4039,8 @@ export default function SlotsGame({
         </motion.button>
       </div>
     </motion.div>
-  );
+    );
+  };
   // ==========================================================================
   // TELA 8 — PAYTABLE MODAL (shared component)
   // ==========================================================================

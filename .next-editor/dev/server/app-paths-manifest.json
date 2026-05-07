@@ -1,0 +1,5 @@
+{
+  "/api/editor/games/route": "app/api/editor/games/route.js",
+  "/api/editor/list-tsx/route": "app/api/editor/list-tsx/route.js",
+  "/editor/page": "app/editor/page.js"
+}

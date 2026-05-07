@@ -862,6 +862,7 @@
     "public/assets/games/blackjack/icon-hit.png",
     "public/assets/games/blackjack/icon-new-hand.png",
     "public/assets/games/blackjack/icon-stand.png",
+    "public/assets/games/blackjack/mesa-poker-blackjack.png",
     "public/assets/games/cases",
     "public/assets/games/cases/backgrounds",
     "public/assets/games/cases/backgrounds/case-bg-arsenal.png",
@@ -951,10 +952,12 @@
     "public/assets/games/poker",
     "public/assets/games/poker/card-back.png",
     "public/assets/games/poker/chip.png",
+    "public/assets/games/poker/mesa-poker-blackjack.png",
     "public/assets/games/poker/suit-clubs.png",
     "public/assets/games/poker/suit-diamonds.png",
     "public/assets/games/poker/suit-hearts.png",
     "public/assets/games/poker/suit-spades.png",
+    "public/assets/games/poker/voce-venceu.png",
     "public/assets/games/roulette",
     "public/assets/games/roulette/chips",
     "public/assets/games/roulette/chips/chip-1.png",
@@ -987,6 +990,9 @@
     "public/assets/games/roulette/wheel-european.png",
     "public/assets/games/slots",
     "public/assets/games/slots/classic",
+    "public/assets/games/slots/classic/cabinet",
+    "public/assets/games/slots/classic/cabinet/lever.png",
+    "public/assets/games/slots/classic/cabinet/machine.png",
     "public/assets/games/slots/classic/bar.png",
     "public/assets/games/slots/classic/bell.png",
     "public/assets/games/slots/classic/cherry.png",
@@ -1315,5 +1321,5 @@
   "file_size_threshold_mb": 5,
   "use_placeholder_subfolder": false,
   "public_txt_only": false,
-  "last_updated": "2026-05-04"
+  "last_updated": "2026-05-07"
 }

@@ -26,6 +26,7 @@ import { SlotsGame } from "@/components/games/slots";
 import { BlackjackGame } from "@/components/games/blackjack";
 import { DailyFreeGame } from "@/components/games/daily-free";
 import { RouletteGame } from "@/components/games/roulette";
+import { PokerGame } from "@/components/games/poker";
 
 export default function BlackoutCasino() {
   const { lang, setLang, activeTab, setActiveTab, selectedGame, setSelectedGame, activeGame, setActiveGame, saldo, setSaldo, isOpen, setIsOpen } = useCasino();
@@ -474,7 +475,14 @@ export default function BlackoutCasino() {
                   onDeposit={() => setShowDeposit(true)}
                 />
               )}
-              {activeGame && activeGame !== "crash" && activeGame !== "anima-game" && activeGame !== "slots" && activeGame !== "blackjack" && activeGame !== "daily-free" && activeGame !== "roulette" && (
+              {activeGame === "poker" && (
+                <PokerGame
+                  key="poker"
+                  onBack={() => setActiveGame(null)}
+                  onDeposit={() => setShowDeposit(true)}
+                />
+              )}
+              {activeGame && activeGame !== "crash" && activeGame !== "anima-game" && activeGame !== "slots" && activeGame !== "blackjack" && activeGame !== "daily-free" && activeGame !== "roulette" && activeGame !== "poker" && (
                 <ComingSoon
                   key={activeGame}
                   onBack={() => setActiveGame(null)}
